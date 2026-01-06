@@ -1,0 +1,27 @@
+﻿<Window x:Class="CrestronDeploymentTool.UserInterface.SimpleTextEntryDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:CrestronDeploymentTool.UserInterface"
+        mc:Ignorable="d"
+        KeyDown="OnKeyDown"
+        Height="350" Width="650"
+        ResizeMode="CanMinimize"
+        WindowStyle="SingleBorderWindow">
+    <Grid Background="#303030">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition></ColumnDefinition>
+            <ColumnDefinition></ColumnDefinition>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="3*"></RowDefinition>
+            <RowDefinition Height="*"></RowDefinition>
+            <RowDefinition Height="1*"></RowDefinition>
+        </Grid.RowDefinitions>
+        <TextBlock Padding="5" x:Name="Message" Foreground="White" Grid.Row="0" Grid.ColumnSpan="2" VerticalAlignment="Center" HorizontalAlignment="Stretch" TextAlignment="Center" TextWrapping="Wrap" FontSize="28"></TextBlock>
+        <TextBlock Padding="5" x:Name="MessagePrompt" Foreground="White" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" TextAlignment="Center"  FontSize="20"  Grid.Row="1" Grid.Column="0"></TextBlock>
+        <TextBox TextChanged="OnTextEntryChanged" BorderThickness="0" x:Name="TextEntered" Background="#33000000" Foreground="White" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" TextAlignment="Center" FontSize="20" Grid.Row="1" Grid.Column="1"></TextBox>
+        <Button IsEnabled="False" x:Name="ConfirmButton" Margin="5" Style="{StaticResource DefaultButtonStyle }" FontSize="28" Grid.Row="2" Grid.Column="1" Content="Confirm Entry" Click="OnTextEntryConfirmed"></Button>
+    </Grid>
+</Window>

@@ -1,0 +1,145 @@
+﻿<Window x:Class="CrestronDeploymentTool.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:CrestronDeploymentTool"
+        xmlns:networking="clr-namespace:CrestronDeploymentTool.Model.Networking"
+        xmlns:deployment="clr-namespace:CrestronDeploymentTool.Model.Deployment"
+        xmlns:devices="clr-namespace:CrestronDeploymentTool.Model.TargetDevices"
+        mc:Ignorable="d"
+        Title="Avidex - Crestron Deployment Tool" Height="720" Width="1280">
+    <Grid Background="#303030">
+        <Grid.RowDefinitions>
+            <RowDefinition></RowDefinition>
+            <RowDefinition></RowDefinition>
+            <RowDefinition></RowDefinition>
+            <RowDefinition></RowDefinition>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition></ColumnDefinition>
+            <ColumnDefinition></ColumnDefinition>
+            <ColumnDefinition></ColumnDefinition>
+        </Grid.ColumnDefinitions>
+        <Grid Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" Grid.RowSpan="4">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition></ColumnDefinition>
+                <ColumnDefinition></ColumnDefinition>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition MaxHeight="55" MinHeight="50" Height="*"></RowDefinition>
+                <RowDefinition Height="5*"></RowDefinition>
+                <RowDefinition MaxHeight="55" MinHeight="50" Height="*"></RowDefinition>
+            </Grid.RowDefinitions>
+            <Border BorderThickness="0" Grid.Row="0" Grid.ColumnSpan="2" Margin="0, 5, 5, 0" CornerRadius="5, 5, 0, 0" Background="#88000000">
+                <TextBlock Background="Transparent" Margin="0, 0, 5, 0"  TextAlignment="Center" HorizontalAlignment="Stretch" FontSize="26" Foreground="White" TextWrapping="Wrap" Text="Discovered Devices"></TextBlock>
+            </Border>
+            <Border BorderThickness="0" Grid.Row="1" Grid.ColumnSpan="2" Margin="0, 0, 5, 0" CornerRadius="0, 0, 5, 5" Background="#33000000">
+                <ListView HorizontalContentAlignment="Left" SelectionMode="Multiple" SelectionChanged="OnDiscoveredDeviceSelectionChanged" BorderThickness="0" Background="Transparent" Margin="0, 0, 5, 0" Height="Auto" BorderBrush="Transparent" ItemsSource="{x:Static devices:DiscoveredDevices.AvailableDiscoveredDevices}">
+                    <ListView.Resources>
+                        <Style TargetType="ScrollBar" BasedOn="{StaticResource ModernScrollBarDefaultStyle}" />
+                    </ListView.Resources>
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+                            <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}"></Setter>
+                            <Setter Property="HorizontalContentAlignment" Value="Left"></Setter>
+                        </Style>
+                    </ListView.ItemContainerStyle>
+                    <ListView.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Margin="5" VerticalAlignment="Center" HorizontalAlignment="Left" Orientation="Horizontal">
+                                <TextBlock TextAlignment="Left" Margin="5" VerticalAlignment="Center" FontSize="28" Foreground="White" Text="{Binding Name}" HorizontalAlignment="Left"></TextBlock>
+                                <TextBlock TextAlignment="Left" Margin="5" VerticalAlignment="Center" FontSize="22" Foreground="LightBlue" Text="{Binding Model}" HorizontalAlignment="Left"></TextBlock>
+                                <TextBlock TextAlignment="Left" Margin="5" VerticalAlignment="Center" FontSize="18" Foreground="WhiteSmoke" Text="{Binding IpAddress}" HorizontalAlignment="Left"></TextBlock>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </Border>
+            <Button IsEnabled="False" Grid.Row="2" Grid.Column="0" Margin="0, 5, 5, 5" Style="{StaticResource DefaultButtonStyle}" FontSize="26" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" x:Name="ClearDeviceList" ToolTip="clear the discovered device list" Click="OnClearDiscoveredDevicesClicked">
+                Clear Device List
+                <ToolTipService.ShowOnDisabled>true</ToolTipService.ShowOnDisabled>
+            </Button>
+            <Button Grid.Row="2" Grid.Column="1" Margin="0, 5, 5, 5" Style="{StaticResource DefaultButtonStyle}" FontSize="26" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" x:Name="ManualDeviceAdd" ToolTip="bypass discovery and add a known device manually, or if for some reason discovery isnt working" Click="OnAddManualDeviceClicked">
+                Add Known Device
+                <ToolTipService.ShowOnDisabled>true</ToolTipService.ShowOnDisabled>
+            </Button>
+        </Grid>
+        <Grid Grid.Row="0" Grid.Column="0" Grid.RowSpan="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition></ColumnDefinition>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition MaxHeight="55" MinHeight="50" Height="*"></RowDefinition>
+                <RowDefinition Height="5*"></RowDefinition>
+                <RowDefinition MaxHeight="55" MinHeight="50" Height="*"></RowDefinition>
+            </Grid.RowDefinitions>
+            <Border BorderThickness="0" Grid.Row="0" Margin="5, 5, 5, 0" CornerRadius="5, 5, 0, 0" Background="#88000000">
+                <TextBlock Background="Transparent" Grid.Row="0" TextAlignment="Center" HorizontalAlignment="Stretch" FontSize="26" Foreground="White" TextWrapping="Wrap" Text="Network Interfaces for Discovery"></TextBlock>
+            </Border>
+            <Border BorderThickness="0" Grid.Row="1" Margin="5, 0, 5, 0" CornerRadius="0, 0, 5, 5" Background="#33000000">
+                <ListView SelectionMode="Multiple" SelectionChanged="OnNetworkInterfaceSelectionChanged" BorderThickness="0" Background="Transparent" Height="Auto" Grid.Row="1" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" BorderBrush="Transparent" ItemsSource="{x:Static networking:AvailableNetworkInterfaces.Interfaces}">
+                    <ListView.Resources>
+                        <Style TargetType="ScrollBar" BasedOn="{StaticResource ModernScrollBarDefaultStyle}" />
+                    </ListView.Resources>
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+                            <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}"></Setter>
+                            <Setter Property="HorizontalContentAlignment" Value="Left"></Setter>
+                        </Style>
+                    </ListView.ItemContainerStyle>
+                    <ListView.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Margin="5" Orientation="Vertical" VerticalAlignment="Stretch" HorizontalAlignment="Left">
+                                <TextBlock TextAlignment="Left" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" TextWrapping="Wrap" FontSize="22" Foreground="White" Text="{Binding Name}"></TextBlock>
+                                <TextBlock TextAlignment="Left" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" TextWrapping="Wrap" FontSize="18" Foreground="WhiteSmoke" Text="{Binding Address}"></TextBlock>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </Border>
+            <Button IsEnabled="False" Margin="5, 5, 5, 5" Style="{StaticResource DefaultButtonStyle}" Grid.Row="2" FontSize="22" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" x:Name="DiscoveryButton" Click="OnDiscoveryClicked" ToolTip="once you have selected one or more network interfaces, you may begin discovering Crestron devices" Content="Begin Discovery">
+                <ToolTipService.ShowOnDisabled>true</ToolTipService.ShowOnDisabled>
+            </Button>
+        </Grid>
+        <Grid Grid.Row="2" Grid.RowSpan="2" Grid.Column="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition></ColumnDefinition>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition MaxHeight="55" MinHeight="50" Height="*"></RowDefinition>
+                <RowDefinition Height="6*"></RowDefinition>
+                <RowDefinition MaxHeight="55" MinHeight="50" Height="*"></RowDefinition>
+            </Grid.RowDefinitions>
+            <Border BorderThickness="0" Grid.Row="0" Margin="5, 0, 5, 0" CornerRadius="5, 5, 0, 0" Background="#88000000">
+                <TextBlock Background="Transparent" TextAlignment="Center" HorizontalAlignment="Stretch" FontSize="26" Foreground="White" TextWrapping="Wrap" Text="Select Deployment Actions"></TextBlock>
+            </Border>
+            <Border BorderThickness="0" Grid.Row="1" Margin="5, 0, 5, 0" CornerRadius="0, 0, 5, 5" Background="#33000000">
+                <ListView SelectionMode="Multiple" SelectionChanged="OnDeploymentItemSelectionChanged" BorderThickness="0" Background="Transparent" Height="Auto" BorderBrush="Transparent" ItemsSource="{x:Static deployment:DeploymentWizardActions.Options}" x:Name="DeploymentActionItems">
+                    <ListView.Resources>
+                        <Style TargetType="ScrollBar" BasedOn="{StaticResource ModernScrollBarDefaultStyle}" />
+                    </ListView.Resources>
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+                            <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}"></Setter>
+                            <Setter Property="HorizontalContentAlignment" Value="Left"></Setter>
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch"></Setter>
+                        </Style>
+                    </ListView.ItemContainerStyle>
+                    <ListView.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock HorizontalAlignment="Stretch" Padding="10" TextAlignment="Left" TextWrapping="Wrap" FontSize="22" Foreground="White" Text="{Binding Name}">
+                                <TextBlock.ToolTip>
+                                    <ToolTip Content="{Binding Description}"></ToolTip>
+                                </TextBlock.ToolTip>
+                            </TextBlock>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </Border>
+            <Button IsEnabled="False" Margin="5, 5, 5, 5" Style="{StaticResource DefaultButtonStyle}" Grid.Row="2" FontSize="22" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" x:Name="DeploymentButton" Content="Begin Deployment Wizard" ToolTip="once you have selected at least one device, and one deployment action, this button will be enabled to begin the appropriate deployment wizard(s)" Click="OnDeploymentWizardClicked">
+                <ToolTipService.ShowOnDisabled>true</ToolTipService.ShowOnDisabled>
+            </Button>
+        </Grid>
+    </Grid>
+</Window>

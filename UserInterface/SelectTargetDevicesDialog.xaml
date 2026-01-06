@@ -1,0 +1,29 @@
+﻿<Window x:Class="CrestronDeploymentTool.UserInterface.SelectTargetDevicesDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:CrestronDeploymentTool.UserInterface"
+        mc:Ignorable="d"
+        Title="SelectTargetDevicesDialog" Height="450" Width="800">
+    <Grid Background="#303030">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition></ColumnDefinition>
+            <ColumnDefinition></ColumnDefinition>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="1.5*"></RowDefinition>
+            <RowDefinition Height="5*"></RowDefinition>
+            <RowDefinition Height="*"></RowDefinition>
+        </Grid.RowDefinitions>
+        <TextBlock TextWrapping="Wrap" Background="#88000000" TextAlignment="Center" Foreground="White" FontSize="24" x:Name="Prompt" Grid.Row="0" Grid.ColumnSpan="2"></TextBlock>
+        <ListView ItemContainerStyle="{StaticResource DefaultListViewItemStyle}" BorderThickness="0" Grid.Row="1" Grid.ColumnSpan="2" Background="#33000000" x:Name="TargetDevices" SelectionMode="Multiple">
+            <ListView.ItemTemplate>
+                <DataTemplate>
+                    <TextBlock FontSize="28" Foreground="White" Text="{Binding}"></TextBlock>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+        <Button Margin="0, 5, 5, 5" Style="{StaticResource DefaultButtonStyle}" FontSize="28" Grid.Row="2" Grid.Column="1" Click="OnConfirmSelectionClicked">Confirm Selection</Button>
+    </Grid>
+</Window>
