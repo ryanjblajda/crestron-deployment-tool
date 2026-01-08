@@ -341,7 +341,7 @@ namespace CrestronDeploymentTool.Model.Deployment
                     string postUploadCommand = $"progload -p:{programSlot}";
 
                     //make sure to add the no flag if we have not elected to overwrite the ip table (or somehow the value is null, because that should be the default operation)
-                    if (overwriteIPTable == false || overwriteIPTable == null) { postUploadCommand += "-n";  }
+                    if (overwriteIPTable == false) { postUploadCommand += "-n";  }
 
                     DeviceDeploymentAction action = new DeviceDeploymentAction(DeploymentWizardActions.SendProgramming, message);
                     
