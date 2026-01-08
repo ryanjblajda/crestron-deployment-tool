@@ -142,7 +142,11 @@ namespace CrestronDeploymentTool.Discovery
                     if (match.Groups.Count >= 3)
                     {
                         string name = match.Groups["hostname"].Value;
-                        string description = match.Groups["description"].Value;
+                        string model = match.Groups["model"].Value;
+                        string firmware = match.Groups["firmware"].Value;
+                        string serial = match.Groups["serial"].Value;
+
+                        Log.Debug($"NAME: {name} MODEL: {model} FIRMWARE: {firmware} SERIAL: {serial}");
 
                         Application.Current.Dispatcher.Invoke(() =>
                         {
