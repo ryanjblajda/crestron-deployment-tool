@@ -47,10 +47,13 @@
                     </ListView.ItemContainerStyle>
                     <ListView.ItemTemplate>
                         <DataTemplate>
+                            <StackPanel>
                             <StackPanel Margin="5" VerticalAlignment="Center" HorizontalAlignment="Left" Orientation="Horizontal">
-                                <TextBlock TextAlignment="Left" Margin="5" VerticalAlignment="Center" FontSize="28" Foreground="White" Text="{Binding Name}" HorizontalAlignment="Left"></TextBlock>
-                                <TextBlock TextAlignment="Left" Margin="5" VerticalAlignment="Center" FontSize="22" Foreground="LightBlue" Text="{Binding Model}" HorizontalAlignment="Left"></TextBlock>
-                                <TextBlock TextAlignment="Left" Margin="5" VerticalAlignment="Center" FontSize="18" Foreground="WhiteSmoke" Text="{Binding IpAddress}" HorizontalAlignment="Left"></TextBlock>
+                                    <TextBlock TextAlignment="Left" Margin="0, 0, 5, 0" VerticalAlignment="Center" FontSize="28" Foreground="White" Text="{Binding Name}" HorizontalAlignment="Left"></TextBlock>
+                                    <TextBlock TextAlignment="Left" Margin="0, 0, 5, 0" VerticalAlignment="Center" FontSize="22" Foreground="LightBlue" Text="{Binding Model}" HorizontalAlignment="Left"></TextBlock>
+                                    <TextBlock TextAlignment="Left" Margin="0, 0, 5, 0" VerticalAlignment="Center" FontSize="18" Foreground="WhiteSmoke" Text="{Binding IpAddress}" HorizontalAlignment="Left"></TextBlock>
+                                </StackPanel>
+                                <TextBlock Margin="10, 5, 5, 2" Background="Transparent" TextAlignment="Left" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" TextWrapping="Wrap" FontSize="16" Foreground="Gray" Text="{Binding FirmwareVersion}"></TextBlock>
                             </StackPanel>
                         </DataTemplate>
                     </ListView.ItemTemplate>
