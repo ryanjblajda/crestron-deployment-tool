@@ -350,6 +350,7 @@ namespace CrestronDeploymentTool.Model.TargetDevices.DeviceDeployment
                         action.Status = DeviceDeploymentActionStatus.SendingFileSuccess;
                         Log.Information($"{prefix} Sent File {remotefilepath} via SFTP");
 
+                        SendCommandSsh(postUploadCommand, action, device, cancel);
                     }
                     else
                     {
