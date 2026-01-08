@@ -280,7 +280,7 @@ namespace CrestronDeploymentTool.Model.Deployment
                 {
                     //open file select dialog
                     string crestronCompiledFilter = "Crestron Compiled Programs (*.cpz;*.spz;*.lpz)|*.cpz;*.spz;*.lpz|" + "SIMPLSharp Pro (*.cpz)|*.cpz|" + "2-Series Programs (*.spz)|*.spz|" + "3-Series Programs (*.lpz)|*.lpz";
-                    OpenFileDialog dialog = new OpenFileDialog { Title = "Select Program File", Filter = crestronCompiledFilter, Multiselect = false };
+                    OpenFileDialog dialog = new OpenFileDialog { Title = "Select Program File", Filter = crestronCompiledFilter, InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Desktop)};
                     bool? result = dialog.ShowDialog();
                     localFilePath = dialog.FileName;
 
@@ -475,7 +475,7 @@ namespace CrestronDeploymentTool.Model.Deployment
                 while (!confirmed && !canceled)
                 {
                     //open select file dialog
-                    OpenFileDialog dialog = new OpenFileDialog { Title = $"Select VTZ // CH5Z File for {model} Devices", Filter = "VTZ Files (*.vtz)|*.vtz|VTZ Files (*.VTZ)|*.VTZ|CH5Z Files (*.ch5z)|*.ch5z|CH5Z Files (*.CH5Z)|*.CH5Z", Multiselect = false };
+                    OpenFileDialog dialog = new OpenFileDialog { Title = $"Select VTZ // CH5Z File for {model} Devices", Filter = "VTZ Files (*.vtz)|*.vtz|VTZ Files (*.VTZ)|*.VTZ|CH5Z Files (*.ch5z)|*.ch5z|CH5Z Files (*.CH5Z)|*.CH5Z", InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Desktop)};
                     bool? result = dialog.ShowDialog();
                     localFilePath = dialog.FileName;
 
@@ -542,7 +542,7 @@ namespace CrestronDeploymentTool.Model.Deployment
                 while (!confirmed && !canceled)
                 {
                     //open select file dialog
-                    OpenFileDialog dialog = new OpenFileDialog { Title = "Select Configuration File", Multiselect = false };
+                    OpenFileDialog dialog = new OpenFileDialog { Title = "Select Configuration File", InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Desktop)};
                     bool? result = dialog.ShowDialog();
                     localFilePath = dialog.FileName;
 
@@ -608,7 +608,7 @@ namespace CrestronDeploymentTool.Model.Deployment
                 while (!confirmed && !canceled)
                 {
                     //open select file dialog
-                    OpenFileDialog dialog = new OpenFileDialog { Title = $"Select Firmware File for {model} Devices", Multiselect = false };
+                    OpenFileDialog dialog = new OpenFileDialog { Title = $"Select Firmware File for {model} Devices", InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Desktop)};
                     bool? result = dialog.ShowDialog();
                     localFilePath = dialog.FileName;
 

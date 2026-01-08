@@ -11,6 +11,7 @@ using CrestronDeploymentTool.Utilities;
 using System.IO;
 using Serilog;
 using Serilog.Events;
+using Microsoft.Win32;
 
 namespace CrestronDeploymentTool
 {
@@ -35,6 +36,8 @@ namespace CrestronDeploymentTool
             this.Deployment.Running = false;
             DiscoveredDevices.AvailableDiscoveredDevices.CollectionChanged += (s, e) => { ClearDeviceList.IsEnabled = DiscoveredDevices.AvailableDiscoveredDevices.Count > 0; };
             ConfigureLogging();
+            OpenFileDialog preload = new OpenFileDialog();
+            preload.Filter = "All files (*.*) | *.*";
         }
 
         /// <summary>
