@@ -78,12 +78,12 @@ namespace CrestronDeploymentTool.Model.TargetDevices
                     this.SshClient = new SshClient(this.IpAddress, "crestron", "");
                     Log.Information($"{prefix} Device: {this.Name} @ {this.IpAddress} | Creating SSH Client => Credentials: {Constants.CrestronDefaultUsername} // **{Constants.CrestronDefaultPassword}**");
                 }
-                else { 
+                else {
                     if (this.SshClient == null)
                     {
-                    this.SshClient = new SshClient(this.IpAddress, username, password);
-                    Log.Information($"{prefix} Device: {this.Name} @ {this.IpAddress} | Creating SSH Client => Credentials: {username} // {password}");
-                }
+                        this.SshClient = new SshClient(this.IpAddress, username, password);
+                        Log.Information($"{prefix} Device: {this.Name} @ {this.IpAddress} | Creating SSH Client => Credentials: {username} // {password}");
+                    }
                 }
 
                 bool? result = action.Invoke(token);

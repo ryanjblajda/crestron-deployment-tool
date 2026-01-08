@@ -236,11 +236,11 @@ namespace CrestronDeploymentTool.Model.TargetDevices.DeviceDeployment
                             Log.Debug($"{prefix} {device.Name} @ {device.IpAddress} SSH Command Result: {CleanString(cmd?.Result)} {(cmd?.Error == String.Empty ? "" : " // Error:" + cmd?.Error)} {(cmd?.ExitStatus == null ? "" : " // Exit Status:" + cmd?.ExitStatus)}");
 
                             if (cmd?.Result != null) { UpdateResponse(cmd.Result, device, action); }
-                            
+
                             if (cmd?.Error != null) { UpdateResponse(cmd?.Error, device, action); }
 
                             if (cmd?.ExitStatus == 0 || cmd?.Error == String.Empty)
-                            { 
+                            {
                                 Log.Information($"{prefix} Command {command} Successfully sent to {device.Name} @ {device.IpAddress}");
                                 action.Status = DeviceDeploymentActionStatus.SendingCommandSuccess;
                                 success = true;
@@ -248,10 +248,10 @@ namespace CrestronDeploymentTool.Model.TargetDevices.DeviceDeployment
                             else {
                                 Log.Information($"{prefix} Command {command} Failure sending to {device.Name} @ {device.IpAddress}");
                                 action.Status = DeviceDeploymentActionStatus.SendingCommandFailed; 
+                            }
                         }
-                    }
                         else { Log.Warning($"{prefix} Command is null!"); }
-                }
+                    }
                     else { Log.Debug($"{prefix} Command is empty string!!"); }
                 }
                 catch (Exception ex)
@@ -427,12 +427,12 @@ namespace CrestronDeploymentTool.Model.TargetDevices.DeviceDeployment
 
                             if (Cancellation.CheckTokenStatus(cancel, action)) { return; }
 
-                                success = true;
-                                action.Status = DeviceDeploymentActionStatus.SendingFileSuccess;
+                            success = true;
+                            action.Status = DeviceDeploymentActionStatus.SendingFileSuccess;
                             Log.Information($"{prefix} Sent File {remotefilepath} via SFTP");
 
-                                SendCommandSsh(postUploadCommand, action, device, cancel);
-                            }
+                            SendCommandSsh(postUploadCommand, action, device, cancel);
+                        }
                         catch (Exception ex) { Log.Fatal($"{prefix} Exception Uploading File: {ex.Message}"); }
                         finally
                         {
