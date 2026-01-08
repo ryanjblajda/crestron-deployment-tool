@@ -153,7 +153,6 @@ namespace CrestronDeploymentTool.Discovery
                             lock (DiscoveredDevices.AvailableDiscoveredDevices)
                             {
                                 if (!DiscoveredDevices.AvailableDiscoveredDevices.ToList().Any(d => d.IpAddress == ipaddr)) {
-                                    //reset for another 8 seconds
                                     timer.Change(discoveryAdditionalTime, Timeout.Infinite);
                                     Log.Debug($"{prefix} Device Found, Discovery Time Extended by {discoveryAdditionalTime / 1000}s");
                                     DiscoveredDevices.AddDevice(new CrestronDevice(name, model, serial, firmware, ipaddr), DiscoveredDevices.AvailableDiscoveredDevices);
