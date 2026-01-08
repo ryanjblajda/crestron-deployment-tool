@@ -1,4 +1,5 @@
-﻿using System.Windows;
+﻿using CrestronDeploymentTool.Utilities;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -10,12 +11,13 @@ namespace CrestronDeploymentTool.UserInterface
     /// </summary>
     public partial class ConnectionCredentialsDialog : Window
     {
-        public ConnectionCredentialsDialog(Window owner)
+        public ConnectionCredentialsDialog(Window owner, string? prompt = null)
         {
             this.Owner = owner;
             this.WindowStartupLocation = WindowStartupLocation.CenterOwner;
-            this.Title = "Provide SSH Credentials";
             InitializeComponent();
+            if (prompt == null) { prompt = $"Please provide the username and password used to connect to **already provisioned devices**"; }
+            TextHelpers.ParseFormattedText(prompt , this.Prompt);
         }
 
         private void CredentialsValid()

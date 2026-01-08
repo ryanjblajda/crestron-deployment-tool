@@ -5,18 +5,23 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:CrestronDeploymentTool.UserInterface"
         mc:Ignorable="d"
-        Title="SelectTargetDevicesDialog" Height="450" Width="800">
+        Title="SelectTargetDevicesDialog"
+        MaxHeight="800"
+        MaxWidth="600"
+        SizeToContent="WidthAndHeight">
     <Grid Background="#303030">
         <Grid.ColumnDefinitions>
             <ColumnDefinition></ColumnDefinition>
             <ColumnDefinition></ColumnDefinition>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
-            <RowDefinition Height="1.5*"></RowDefinition>
-            <RowDefinition Height="5*"></RowDefinition>
-            <RowDefinition Height="*"></RowDefinition>
+            <RowDefinition Height=".45*"></RowDefinition>
+            <RowDefinition Height="1*"></RowDefinition>
+            <RowDefinition Height=".25*"></RowDefinition>
         </Grid.RowDefinitions>
-        <TextBlock TextWrapping="Wrap" Background="#88000000" TextAlignment="Center" Foreground="White" FontSize="24" x:Name="Prompt" Grid.Row="0" Grid.ColumnSpan="2"></TextBlock>
+        <Border Background="#88000000" Grid.Row="0" Grid.ColumnSpan="2">
+            <TextBlock TextWrapping="Wrap" VerticalAlignment="Center" TextAlignment="Center" Foreground="White" Height="Auto" FontSize="18" x:Name="Prompt"></TextBlock>
+        </Border>
         <ListView ItemContainerStyle="{StaticResource DefaultListViewItemStyle}" BorderThickness="0" Grid.Row="1" Grid.ColumnSpan="2" Background="#33000000" x:Name="TargetDevices" SelectionMode="Multiple">
             <ListView.ItemTemplate>
                 <DataTemplate>

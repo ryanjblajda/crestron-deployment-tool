@@ -24,18 +24,45 @@ namespace CrestronDeploymentTool.UserInterface
     {
         private Action start;
         private Action stop;
+        private DeploymentStatus deploy;
 
-        public DeploymentStatusWindow(Window owner, DeploymentStatus status, Action start, Action stop)
+        public DeploymentStatusWindow(MainWindow owner, DeploymentStatus status, Action start, Action stop)
         {
             InitializeComponent();
             this.start = start;
             this.stop = stop;
             this.DataContext = status;
             this.Owner = owner;
+            this.deploy = owner.Deployment;
             this.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            this.Closing += OnClosing;
         }
 
-        private void OnClearDeploymentActionsClicked(object sender, RoutedEventArgs e)
+        /// <summary>
+        /// asks the user to make sure to remember to clear out the deployment list if required
+        /// </summary>
+        /// <param name="sender">the window that fired the event</param>
+        /// <param name="e">the event args</param>
+        private void OnClosing(object? sender, CancelEventArgs e)
+        {
+            //dont allow removal of deployment items unless deployment is idle
+            if (this.deploy.Idle)
+            {
+                //only show if any of the selected target devices have deployment actions added
+                if (DiscoveredDevices.SelectedTargetDevices.Any(d => d.DeploymentActions.Count > 0))
+                {
+                    MessageBoxResult result = ConfirmationDialog.Show("Do you want to *clear* the deployment action list?", "Clear Deployment", MessageBoxButton.YesNo);
+                    //old version using default messagebox
+                    //MessageBoxResult result = MessageBox.Show("Do you want to clear the deployment action list?", "Clear Deployment", MessageBoxButton.YesNo);
+                    if (result == MessageBoxResult.Yes) { ClearDeploymentActions(); }
+                }
+            }
+        }
+
+        /// <summary>
+        /// clears all deployment actions on the selected target devices
+        /// </summary>
+        private void ClearDeploymentActions()
         {
             lock (DiscoveredDevices.SelectedTargetDevices)
             {
@@ -43,11 +70,31 @@ namespace CrestronDeploymentTool.UserInterface
             }
         }
 
+        /// <summary>
+        /// event handler when clear deployment actions is clicked
+        /// </summary>
+        /// <param name="sender">the button that sent the event</param>
+        /// <param name="e">routed event args</param>
+        private void OnClearDeploymentActionsClicked(object sender, RoutedEventArgs e)
+        {
+            ClearDeploymentActions();
+        }
+
+        /// <summary>
+        /// event handler to start deployment
+        /// </summary>
+        /// <param name="sender">the button that sent the event</param>
+        /// <param name="e">routed event args</param>
         private void OnBeginDeploymentClicked(object sender, RoutedEventArgs e)
         {
             this.start();
         }
 
+        /// <summary>
+        /// event handler to stop deployment
+        /// </summary>
+        /// <param name="sender">the button that sent the event</param>
+        /// <param name="e">routed event args</param>
         private void OnCancelDeploymentClicked(object sender, RoutedEventArgs e)
         {
             this.stop();   

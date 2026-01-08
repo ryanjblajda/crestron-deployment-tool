@@ -1,7 +1,9 @@
-﻿using CrestronDeploymentTool.Model.TargetDevices.DeviceDeployment;
+﻿using CrestronDeploymentTool.Model.Deployment;
+using CrestronDeploymentTool.Model.TargetDevices.DeviceDeployment;
 using CrestronDeploymentTool.Utilities;
 using Renci.SshNet;
 using Renci.SshNet.Common;
+using Serilog;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -41,7 +43,7 @@ namespace CrestronDeploymentTool.Model.TargetDevices
         {
             DeploymentActions = new ObservableCollection<DeviceDeploymentAction>();
 
-            Debug.WriteLine($"{prefix} Creating New Device: {name} => {description} @ {ipaddress}");
+            Log.Information($"{prefix} Creating New Device: {name} => {description} @ {ipaddress}");
 
             Name = name.ToUpper();
             Description = description.ToUpper();
@@ -61,20 +63,26 @@ namespace CrestronDeploymentTool.Model.TargetDevices
 
             List<DeviceDeploymentAction> deploy = new List<DeviceDeploymentAction>();
 
-            Debug.WriteLine($"{prefix} Device: {this.Name} @ {this.IpAddress} | Beginning Deployment");
+            Log.Information($"{prefix} Device: {this.Name} @ {this.IpAddress} | Beginning Deployment");
 
             lock (this.DeploymentActions) { deploy = this.DeploymentActions.ToList(); }
 
-            Debug.WriteLine($"{prefix} Device: {this.Name} @ {this.IpAddress} | Creating SSH Client => Credentials {username} {password}");
-            
-            this.SshClient = new SshClient(this.IpAddress, username, password);
             this.SftpClient = new SftpClient(this.IpAddress, username, password);
             this.TcpClient = new TcpClient();
 
             deploy.ForEach(action => 
             {
-                Debug.WriteLine($"{prefix} Device: {this.Name} @ {this.IpAddress} | Beginning Task: {action.Description}");
-                
+                Log.Information($"{prefix} Device: {this.Name} @ {this.IpAddress} | Beginning Task: {action.Description}");
+
+                if (action.Name == DeploymentWizardActions.ProvisionNewDevice) {
+                    this.SshClient = new SshClient(this.IpAddress, "crestron", "");
+                    Log.Information($"{prefix} Device: {this.Name} @ {this.IpAddress} | Creating SSH Client => Credentials: {Constants.CrestronDefaultUsername} // **{Constants.CrestronDefaultPassword}**");
+                }
+                else { 
+                    this.SshClient = new SshClient(this.IpAddress, username, password);
+                    Log.Information($"{prefix} Device: {this.Name} @ {this.IpAddress} | Creating SSH Client => Credentials: {username} // {password}");
+                }
+
                 bool? result = action.Invoke(token);
                 
                 if (result != null) {
@@ -83,7 +91,7 @@ namespace CrestronDeploymentTool.Model.TargetDevices
                 }
             });
 
-            Debug.WriteLine($"{prefix} Device: {this.Name} @ {this.IpAddress} | Deployment Complete");
+            Log.Information($"{prefix} Device: {this.Name} @ {this.IpAddress} | Deployment Complete");
         }
 
         /// <summary>
@@ -99,13 +107,13 @@ namespace CrestronDeploymentTool.Model.TargetDevices
             {
                 action.Status = DeviceDeploymentActionStatus.Waiting;
                 action.Message = "Attempting to connect with SSH";
-                Debug.WriteLine($"{prefix} Device: {this.Name} @ {this.IpAddress} | Attempting to connect with SSH");
+                Log.Information($"{prefix} Device: {this.Name} @ {this.IpAddress} | Attempting to connect with SSH");
 
                 try
                 {
                     if (!this.SshClient.IsConnected) { this.SshClient.Connect(); }
                     action.Status = DeviceDeploymentActionStatus.SSHSuccess;
-                    Debug.WriteLine($"{prefix} Device: {this.Name} @ {this.IpAddress} | Connected via SSH");
+                    Log.Information($"{prefix} Device: {this.Name} @ {this.IpAddress} | Connected via SSH");
 
                     result = ConnectionResult.UseSsh;
                 }
@@ -118,20 +126,28 @@ namespace CrestronDeploymentTool.Model.TargetDevices
                     {
                         try
                         {
-                            if (this.TcpClient?.Connected == false) { this.TcpClient?.Connect(new IPEndPoint(IPAddress.Parse(this.IpAddress), 23)); }
+                            if (this.TcpClient?.Connected == false) { this.TcpClient?.Connect(new IPEndPoint(IPAddress.Parse(this.IpAddress), Constants.TelnetPort)); }
 
-                            Debug.WriteLine($"{prefix} Device: {this.Name} @ {this.IpAddress} | Attempting to connect with Telnet");
+                            Log.Information($"{prefix} Device: {this.Name} @ {this.IpAddress} | Attempting to connect with Telnet");
                             
                             action.Status = DeviceDeploymentActionStatus.TelnetSuccess;
+                            action.Message = "Connected via Telnet";
                             result = ConnectionResult.UseTelnet;
 
-                            Debug.WriteLine($"{prefix} Device: {this.Name} @ {this.IpAddress} | Connected via Telnet");
+                            Log.Information($"{prefix} Device: {this.Name} @ {this.IpAddress} | Connected via Telnet");
                         }
                         catch (Exception telnetEx)
                         {
                             action.Status = DeviceDeploymentActionStatus.TelnetFailed;
                             action.Message = telnetEx.Message;
+                            Log.Error($"{prefix} Device: {this.Name} @ {this.IpAddress} -> {telnetEx.Message}");
                         }
+                    }
+                    else if (sshEx.GetType() == typeof(SshAuthenticationException))
+                    {
+                        Log.Error($"{prefix} Device: {this.Name} @ {this.IpAddress} | Credentials Incorrect!");
+                        action.Status = DeviceDeploymentActionStatus.SSHFailed;
+                        action.Message = "SSH Credentials Incorrect!";
                     }
                 }
             }
@@ -153,7 +169,7 @@ namespace CrestronDeploymentTool.Model.TargetDevices
         {
             ConnectionResult result = ConnectionResult.ConnectionFailure;
             action.Message = "Attempting to connect SFTP";
-            Debug.WriteLine($"{prefix} Device: {this.Name} @ {this.IpAddress} | Attempting to connect with SFTP");
+            Log.Information($"{prefix} Device: {this.Name} @ {this.IpAddress} | Attempting to connect with SFTP");
 
             if (this.SftpClient != null)
             {
@@ -167,7 +183,7 @@ namespace CrestronDeploymentTool.Model.TargetDevices
                 }
 
                 result = ConnectionResult.UseSsh;
-                Debug.WriteLine($"{prefix} Device: {this.Name} @ {this.IpAddress} | Connected to SFTP");
+                Log.Information($"{prefix} Device: {this.Name} @ {this.IpAddress} | Connected to SFTP");
             }
             else { 
                 action.Status = DeviceDeploymentActionStatus.CompleteFailure;

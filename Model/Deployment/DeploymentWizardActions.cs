@@ -1,5 +1,6 @@
 ﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Windows;
 
 namespace CrestronDeploymentTool.Model.Deployment
 {
@@ -15,13 +16,13 @@ namespace CrestronDeploymentTool.Model.Deployment
         public const string SendFirmware = "Update Firmware";
         public const string SendConfigurationFiles = "Send/Update Configuration Files";
         public const string SendConsoleCommands = "Send Console Commands";
-        public const string SetDefaultCredentials = "Set Default Login Credentials";
-        public const string SetNetworkInformation = "Set New IP Configuration";
+        public const string ProvisionNewDevice = "Provision New Device";
+        public const string SetNetworkInformation = "Set/Update IP Configuration";
 
 
         static DeploymentWizardActions()
         {
-            if (DesignerProperties.GetIsInDesignMode(new System.Windows.DependencyObject())) { LoadElements(); }
+            if (DesignerProperties.GetIsInDesignMode(new DependencyObject())) { LoadElements(); }
             else { LoadElements(); }
         }
 
@@ -30,14 +31,14 @@ namespace CrestronDeploymentTool.Model.Deployment
         /// </summary>
         private static void LoadElements()
         {
-            new List<(string, string)>() { 
-                (SendProgramming, "select this to update programming to multiple control processors"), 
-                (SendUserInterfaces, "select this to update user interfaces on multiple devices"),
+            new List<(string, string)>() {
+                (ProvisionNewDevice, "select this to configure the default credentials on a OOTB multiple device"),
+                (SetNetworkInformation, "select this to adjust network settings on multiple devices"),
                 (SendFirmware, "select this to update firmware on multiple devices"),
                 (SendConfigurationFiles, "select this to send configuration files to multiple devices"),
+                (SendProgramming, "select this to update programming to multiple control processors"), 
+                (SendUserInterfaces, "select this to update user interfaces on multiple devices"),
                 (SendConsoleCommands, "select this to send a console command to multiple devices"),
-                (SetDefaultCredentials, "select this to configure the default credentials on a OOTB multiple device"),
-                (SetNetworkInformation, "select this to adjust network settings on multiple devices")
             }.ForEach(item => { Options.Add(new DeploymentWizardAction(false, item.Item1, item.Item2)); });
         }
 

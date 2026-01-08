@@ -29,7 +29,7 @@
             <Grid.RowDefinitions>
                 <RowDefinition MaxHeight="55" MinHeight="50" Height="*"></RowDefinition>
                 <RowDefinition Height="5*"></RowDefinition>
-                <RowDefinition MaxHeight="55" MinHeight="50" Height="*"></RowDefinition>
+                <RowDefinition Height="55"></RowDefinition>
             </Grid.RowDefinitions>
             <Border BorderThickness="0" Grid.Row="0" Grid.ColumnSpan="2" Margin="0, 5, 5, 0" CornerRadius="5, 5, 0, 0" Background="#88000000">
                 <TextBlock Background="Transparent" Margin="0, 0, 5, 0"  TextAlignment="Center" HorizontalAlignment="Stretch" FontSize="26" Foreground="White" TextWrapping="Wrap" Text="Discovered Devices"></TextBlock>
@@ -72,7 +72,7 @@
             <Grid.RowDefinitions>
                 <RowDefinition MaxHeight="55" MinHeight="50" Height="*"></RowDefinition>
                 <RowDefinition Height="5*"></RowDefinition>
-                <RowDefinition MaxHeight="55" MinHeight="50" Height="*"></RowDefinition>
+                <RowDefinition Height="55"></RowDefinition>
             </Grid.RowDefinitions>
             <Border BorderThickness="0" Grid.Row="0" Margin="5, 5, 5, 0" CornerRadius="5, 5, 0, 0" Background="#88000000">
                 <TextBlock Background="Transparent" Grid.Row="0" TextAlignment="Center" HorizontalAlignment="Stretch" FontSize="26" Foreground="White" TextWrapping="Wrap" Text="Network Interfaces for Discovery"></TextBlock>
@@ -109,7 +109,7 @@
             <Grid.RowDefinitions>
                 <RowDefinition MaxHeight="55" MinHeight="50" Height="*"></RowDefinition>
                 <RowDefinition Height="6*"></RowDefinition>
-                <RowDefinition MaxHeight="55" MinHeight="50" Height="*"></RowDefinition>
+                <RowDefinition Height="55"></RowDefinition>
             </Grid.RowDefinitions>
             <Border BorderThickness="0" Grid.Row="0" Margin="5, 0, 5, 0" CornerRadius="5, 5, 0, 0" Background="#88000000">
                 <TextBlock Background="Transparent" TextAlignment="Center" HorizontalAlignment="Stretch" FontSize="26" Foreground="White" TextWrapping="Wrap" Text="Select Deployment Actions"></TextBlock>

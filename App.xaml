@@ -8,7 +8,6 @@
         <SolidColorBrush x:Key="PrimaryBlue" Color="#007ACC"/>
         <SolidColorBrush x:Key="SecondaryBlue" Color="#005A9E"/>
         <SolidColorBrush x:Key="PrimaryGrey" Color="#444"/>
-
         <Style x:Key="ModernScrollBarDefaultStyle" TargetType="ScrollBar">
             <Setter Property="Width" Value="10"/>
             <Setter Property="Background" Value="Transparent"/>
@@ -47,6 +46,7 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <Style TargetType="ScrollBar" BasedOn="{StaticResource ModernScrollBarDefaultStyle}"></Style>
 
         <Style TargetType="Button" x:Key="CancelButtonStyle">
             <Setter Property="Background" Value="#a14702"/>

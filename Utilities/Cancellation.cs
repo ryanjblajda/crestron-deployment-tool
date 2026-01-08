@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Serilog;
 
 namespace CrestronDeploymentTool.Utilities
 {
@@ -14,6 +15,7 @@ namespace CrestronDeploymentTool.Utilities
     internal static class Cancellation
     {
         private const string prefix = "Cancellation |";
+        private const string message = "\r!! Operation Canceled !!";
 
         /// <summary>
         /// checkes the cancellation status of a token and updates the correct deployment action as needed
@@ -29,13 +31,13 @@ namespace CrestronDeploymentTool.Utilities
             {
                 exit = true;
 
-                Debug.WriteLine($"{prefix} Cancellation Requested");
+                Log.Debug($"{prefix} Cancellation Requested");
 
                 if (action != null)
                 {
-                    Debug.WriteLine($"{prefix} Update Deployment Action");
+                    Log.Debug($"{prefix} Update Deployment Action");
                     action.Status = DeviceDeploymentActionStatus.CompleteCanceled;
-                    action.Message += "\r!! Operation Canceled !!";
+                    if (!action.Message.Contains(message)) { action.Message += message; }
                 }
             }
 

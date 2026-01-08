@@ -1,0 +1,62 @@
+﻿<Window x:Class="CrestronDeploymentTool.UserInterface.NetworkConfiguration"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:CrestronDeploymentTool.UserInterface"
+        mc:Ignorable="d"
+        Title="NetworkConfiguration" Background="#333333"
+        ResizeMode="CanResize"
+        MaxHeight="1280"
+        MaxWidth="800"
+        SizeToContent="WidthAndHeight">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition/>
+            <ColumnDefinition/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition/>
+            <RowDefinition/>
+            <RowDefinition/>
+            <RowDefinition/>
+            <RowDefinition/>
+            <RowDefinition/>
+            <RowDefinition/>
+            <RowDefinition/>
+            <RowDefinition/>
+        </Grid.RowDefinitions>
+        <TextBlock Margin="10" Foreground="WhiteSmoke" FontSize="18" TextAlignment="Center" VerticalAlignment="Center" Grid.ColumnSpan="2">
+            Please select the network options you would like to update.
+        </TextBlock>
+        <TextBlock Margin="10" Padding="5" Foreground="White" VerticalAlignment="Center" HorizontalAlignment="Stretch" TextAlignment="Center"  FontSize="20"  Grid.Row="1" Grid.Column="0">
+            Enable DHCP
+        </TextBlock>
+        <CheckBox x:Name="EnableDHCP" Unchecked="OnDHCPEnabledChanged" Checked="OnDHCPEnabledChanged" Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center"></CheckBox>
+        <TextBlock Margin="10" Padding="5" Foreground="White" VerticalAlignment="Center" HorizontalAlignment="Stretch" TextAlignment="Center"  FontSize="20"  Grid.Row="2" Grid.Column="0">
+            Hostname
+        </TextBlock>
+        <TextBox TextChanged="OnTextEntryChanged" BorderThickness="0" x:Name="HostnameEntered" Background="#33000000" Foreground="White" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" TextAlignment="Center" FontSize="20" Grid.Row="2" Grid.Column="1"></TextBox>
+        <TextBlock Margin="10" Padding="5" Foreground="White" VerticalAlignment="Center" HorizontalAlignment="Stretch" TextAlignment="Center"  FontSize="20"  Grid.Row="3" Grid.Column="0">
+            IP Address
+        </TextBlock>
+        <TextBox TextChanged="OnTextEntryChanged" BorderThickness="0" x:Name="IPAddressEntered" Background="#33000000" Foreground="White" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" TextAlignment="Center" FontSize="20" Grid.Row="3" Grid.Column="1"></TextBox>
+        <TextBlock Margin="10" Padding="5" Foreground="White" VerticalAlignment="Center" HorizontalAlignment="Stretch" TextAlignment="Center"  FontSize="20"  Grid.Row="4" Grid.Column="0">
+            Subnet Mask
+        </TextBlock>
+        <TextBox TextChanged="OnTextEntryChanged" BorderThickness="0" x:Name="SubnetMaskEntered" Background="#33000000" Foreground="White" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" TextAlignment="Center" FontSize="20" Grid.Row="4" Grid.Column="1"></TextBox>
+        <TextBlock Margin="10" Padding="5" Foreground="White" VerticalAlignment="Center" HorizontalAlignment="Stretch" TextAlignment="Center"  FontSize="20"  Grid.Row="5" Grid.Column="0">
+            Default Gateway
+        </TextBlock>
+        <TextBox TextChanged="OnTextEntryChanged" BorderThickness="0" x:Name="DefaultGatewayEntered" Background="#33000000" Foreground="White" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" TextAlignment="Center" FontSize="20" Grid.Row="5" Grid.Column="1"></TextBox>
+        <TextBlock Margin="10" Padding="5" Foreground="White" VerticalAlignment="Center" HorizontalAlignment="Stretch" TextAlignment="Center"  FontSize="20"  Grid.Row="6" Grid.Column="0">
+            Primary DNS
+        </TextBlock>
+        <TextBox TextChanged="OnTextEntryChanged" BorderThickness="0" x:Name="PrimaryDNSEntered" Background="#33000000" Foreground="White" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" TextAlignment="Center" FontSize="20" Grid.Row="6" Grid.Column="1"></TextBox>
+        <TextBlock Margin="10" Padding="5" Foreground="White" VerticalAlignment="Center" HorizontalAlignment="Stretch" TextAlignment="Center"  FontSize="20"  Grid.Row="7" Grid.Column="0">
+            Secondary DNS
+        </TextBlock>
+        <TextBox TextChanged="OnTextEntryChanged" BorderThickness="0" x:Name="SecondaryDNSEntered" Background="#33000000" Foreground="White" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" TextAlignment="Center" FontSize="20" Grid.Row="7" Grid.Column="1"></TextBox>
+        <Button IsEnabled="False" x:Name="ConfirmButton" Margin="5" Style="{StaticResource DefaultButtonStyle }" FontSize="28" Grid.Row="8" Grid.Column="1" Content="Confirm Configuration" Click="OnConfirmConfigurationClicked"></Button>
+    </Grid>
+</Window>

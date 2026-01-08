@@ -1,21 +1,24 @@
 ﻿using CrestronDeploymentTool.UserInterface;
 using CrestronDeploymentTool.Model.TargetDevices;
-using System.Linq;
-using System.Windows;
-using System.Collections.ObjectModel;
-using System.Collections.Immutable;
 using CrestronDeploymentTool.Model.Deployment.ConsoleCommand;
 using CrestronDeploymentTool.Model.TargetDevices.DeviceDeployment;
+using CrestronDeploymentTool.Utilities;
+
+using System.Windows;
+using System.Collections.Immutable;
 using Microsoft.Win32;
 using System.IO;
 using System.IO.Compression;
+using System.Diagnostics;
+using Serilog;
 
 namespace CrestronDeploymentTool.Model.Deployment
 {
     public static class DeploymentWizard
     {
         private static Window? mainWindow;
-        public static (string, string, bool) ConnectionDetails(Window owner)
+        private const string prefix = "DeploymentWizard |";
+        public static (string, string, bool) ConnectionDetails(Window owner, string? prompt = null)
         {
             mainWindow = owner;
 
@@ -26,7 +29,11 @@ namespace CrestronDeploymentTool.Model.Deployment
 
             while (result == false)
             {
-                ConnectionCredentialsDialog dialog = new ConnectionCredentialsDialog(owner);
+                ConnectionCredentialsDialog dialog;
+
+                if (prompt == null) { dialog = new ConnectionCredentialsDialog(owner); }
+                else { dialog = new ConnectionCredentialsDialog(owner, prompt); }
+                
                 result = dialog.ShowDialog();
 
                 if (result == true)
@@ -35,8 +42,10 @@ namespace CrestronDeploymentTool.Model.Deployment
                     password = dialog.Password.Password;
                 }
                 else 
-                { 
-                    MessageBoxResult why = MessageBox.Show("You must enter credentials....how else can I connect to the devices?", "Provide Credentials (Pretty Please)", MessageBoxButton.OKCancel); 
+                {
+                    MessageBoxResult why = ConfirmationDialog.Show("You must enter credentials....how else can I connect to the devices?", "Provide Credentials (Pretty Please)", MessageBoxButton.OKCancel);
+                    //old version using default messagebox
+                    //MessageBoxResult why = MessageBox.Show("You must enter credentials....how else can I connect to the devices?", "Provide Credentials (Pretty Please)", MessageBoxButton.OKCancel); 
                     
                     if (why == MessageBoxResult.Cancel) 
                     { 
@@ -97,10 +106,16 @@ namespace CrestronDeploymentTool.Model.Deployment
             else { filtered = DiscoveredDevices.SelectedTargetDevices.Select(i => i.Name).ToList(); }
 
             //if we need to prompt for selection we provide the list with this specific selection
-            if (prompt) {
+            if (prompt)
+            {
                 //we only want to show the prompt, if there is a device to select
                 if (filtered.Count > 0) { devices = PromptForTargetDevices(action, filtered); }
-                else { MessageBox.Show($"There are no devices available from your initial selection that support {action}."); }
+                else
+                {
+                    ConfirmationDialog.Show($"There are no devices available from your initial selection that support {action}.", "Notice");
+                    //old version using default messagebox
+                    //MessageBox.Show($"There are no devices available from your initial selection that support {action}."); }
+                }
             }
             //if we didnt need to prompt, get all currently selected devices
             else { devices = DiscoveredDevices.SelectedTargetDevices.ToList(); }
@@ -114,11 +129,21 @@ namespace CrestronDeploymentTool.Model.Deployment
         /// <returns>the send type</returns>
         private static ConsoleCommandSendType DetermineConsoleCommandSendType()
         {
-            ConsoleCommandSendType result = ConsoleCommandSendType.Batch;
+            ConsoleCommandSendType type = ConsoleCommandSendType.Batch;
 
+            MessageBoxResult confirm = MessageBoxResult.No, result = MessageBoxResult.None;
+            
+            while (confirm != MessageBoxResult.Yes) {
+                result = ConfirmationDialog.Show("By default, we will send the *same command to all devices* aka ***batch*** mode.\r\rWould you like to send commands in *unique* mode instead?\r\r**(This will prompt you for a command per-device)**", "Command Send Mode", MessageBoxButton.YesNo);
 
+                if (result == MessageBoxResult.None || confirm == MessageBoxResult.None) { ConfirmationDialog.Show("You *must* make a selection.\r\rIf you **really** want to cancel the operation you can do this per-device later in the wizard.", "Selection Required", MessageBoxButton.OK); }
+                else if (result == MessageBoxResult.Yes) { type = ConsoleCommandSendType.Unique; }
+                else if (result == MessageBoxResult.No) { type = ConsoleCommandSendType.Batch; }
 
-            return result;
+                if (result == MessageBoxResult.Yes || result == MessageBoxResult.No) { confirm = ConfirmationDialog.Show($"You have elected to send commands in **{type.ToString().ToLower()}** mode\r\r**Is this correct?**", "Confirm Selection", MessageBoxButton.YesNo); }
+            }
+                    
+            return type;
         }
 
         /// <summary>
@@ -136,7 +161,6 @@ namespace CrestronDeploymentTool.Model.Deployment
 
             if (type == ConsoleCommandSendType.Batch) 
             {
-                
                 bool? result = false;
                 string command = String.Empty;
 
@@ -145,8 +169,10 @@ namespace CrestronDeploymentTool.Model.Deployment
                     SimpleTextEntryDialog dialog = new SimpleTextEntryDialog("Please provide the console command that will be sent to *all* devices", "Console Command", "Console Command Entry", @"^[a-zA-Z_][a-zA-Z0-9_-]*(\s+(""[^""]*""|'[^']*'|[^\s""']+))*$", mainWindow);
                     result = dialog.ShowDialog();
                     
-                    if (result != true) { 
-                        MessageBoxResult cancel = MessageBox.Show("Look man, if you wanted to send console commands you can't provide me an empty string. Either provide me a command or cancel the operation.", "Console Command Cannot Be Empty!", MessageBoxButton.OKCancel);
+                    if (result != true) {
+                        MessageBoxResult cancel = ConfirmationDialog.Show("Look man, if you wanted to send console commands you can't provide me an empty string. Either provide me a command or cancel the operation.", "Console Command Cannot Be Empty!", MessageBoxButton.OKCancel);
+                        //old version using default messagebox
+                        //MessageBoxResult cancel = MessageBox.Show("Look man, if you wanted to send console commands you can't provide me an empty string. Either provide me a command or cancel the operation.", "Console Command Cannot Be Empty!", MessageBoxButton.OKCancel);
                         
                         if (cancel == MessageBoxResult.Cancel) { return(canceled = true); }
                     }
@@ -169,11 +195,40 @@ namespace CrestronDeploymentTool.Model.Deployment
             }
             else if (type == ConsoleCommandSendType.Unique) 
             {
+                targets.ForEach(d =>
+                {
+                    string command = String.Empty;
+                    bool? result = false;
+                    bool canceled = false;
 
+                    while (result == false)
+                    {
+                        SimpleTextEntryDialog dialog = new SimpleTextEntryDialog($"Please provide the console command that will be sent to {d.Name} @ {d.IpAddress}", $"{d.Name} Console Command", "Console Command Entry", @"^[a-zA-Z_][a-zA-Z0-9_-]*(\s+(""[^""]*""|'[^']*'|[^\s""']+))*$", mainWindow);
+                        result = dialog.ShowDialog();
+
+                        if (result != true)
+                        {
+                            MessageBoxResult cancel = ConfirmationDialog.Show("Look man, if you wanted to send a console command you can't provide me an empty string.\r\r*Either provide me a command or cancel the operation.*", "Console Command Cannot Be Empty!", MessageBoxButton.OKCancel);
+                            //old version using default messagebox
+                            //MessageBoxResult cancel = MessageBox.Show("Look man, if you wanted to send console commands you can't provide me an empty string. Either provide me a command or cancel the operation.", "Console Command Cannot Be Empty!", MessageBoxButton.OKCancel);
+
+                            if (cancel == MessageBoxResult.Cancel) { canceled = true; result = true; }
+                        }
+
+                        command = dialog.TextEntered.Text;
+                    }
+
+                    if (!canceled)
+                    {
+                        //create a new action
+                        DeviceDeploymentAction action = new DeviceDeploymentAction(DeploymentWizardActions.SendConsoleCommands, $"Perform {command} command on {d.Name} @ {d.IpAddress}");
+                        //assign a lamba function wrapping the send console command call, passing in the command, the device we need to perform the action on, and a reference to the action so that it can be updated with status
+                        action.AssignAction((token) => { return DeviceDeploymentAction.SendConsoleCommand(command, d, action, token); });
+                        //assign that action to the device for later use
+                        d.DeploymentActions.Add(action);
+                    }
+                });
             }
-
-            //confirm -> loop back through if needed
-
             return (canceled);
         }
 
@@ -206,7 +261,7 @@ namespace CrestronDeploymentTool.Model.Deployment
         public static bool Programming(bool prompt)
         {
             bool canceled = false;
-            //prompt for target devices [filter by touchpanel for now] -- add support for processors in the future
+            //prompt for target devices
             List<CrestronDevice> targetDevices = DetermineTargetDevices(prompt, DeploymentWizardActions.SendProgramming, DiscoveredDevices.ProgrammingCapableDevices);
             //create a list of canceled devices
             List<CrestronDevice> canceledDevices = new List<CrestronDevice>();
@@ -231,7 +286,9 @@ namespace CrestronDeploymentTool.Model.Deployment
 
                     if (result == true)
                     {
-                        MessageBoxResult confirmSelection = MessageBox.Show($"You have selected the following program:\r\r{Path.GetFileName(localFilePath)}", "Confirm Program File Selection", MessageBoxButton.YesNo);
+                        MessageBoxResult confirmSelection = ConfirmationDialog.Show($"You have selected the following program:\r\r**{Path.GetFileName(localFilePath)}**", "Confirm Program File Selection", MessageBoxButton.YesNo);
+                        //old version using default messagebox
+                        //MessageBoxResult confirmSelection = MessageBox.Show($"You have selected the following program:\r\r**{Path.GetFileName(localFilePath)}**", "Confirm Program File Selection", MessageBoxButton.YesNo);
                         if (confirmSelection == MessageBoxResult.Yes) 
                         { 
                             confirmed = true;
@@ -246,14 +303,18 @@ namespace CrestronDeploymentTool.Model.Deployment
                                 includeSIGFile = progOptionsDialog.IncludeSIGFile.IsChecked;
                                 overwriteIPTable = progOptionsDialog.OverwriteIPTable.IsChecked;
 
-                                if (exited == false) { MessageBoxResult cancelOperation = MessageBox.Show($"Listen here, you gotta select program options, since you decided to send {Path.GetFileName(localFilePath)} to {device.Name}.", "Program Options Required", MessageBoxButton.OK); }
+                                if (exited == false) {
+                                    ConfirmationDialog.Show($"Listen here, you *gotta* select program options, since you decided to send ***{Path.GetFileName(localFilePath)}*** to {device.Name}.", "Program Options Required", MessageBoxButton.OK);
+                                    //old version using default messagebox
+                                    //MessageBoxResult cancelOperation = MessageBox.Show($"Listen here, you gotta select program options, since you decided to send {Path.GetFileName(localFilePath)} to {device.Name}.", "Program Options Required", MessageBoxButton.OK); 
+                                }
                                 else {
-                                    string programOptionMessage = $"You have selected the following options for the deployment of: {Path.GetFileName(localFilePath)} to {device.Name}\r\r" +
-                                    $"Program Slot: {programSlot}\r" +
-                                    $"Include Sig File: {(progOptionsDialog.IncludeSIGFile.IsChecked == true ? "Yes" : "No")}\r" +
-                                    $"Overwrite IP Table: {(progOptionsDialog.OverwriteIPTable.IsChecked == true ? "Yes" : "No")}\r\r" +
-                                    $"Are these options correct?";
-                                    MessageBoxResult optionsConfirmedResponse = MessageBox.Show(programOptionMessage, "Confirm Program Options", MessageBoxButton.YesNo);
+                                    string programOptionMessage = $"You have selected the following options for the deployment of: *{Path.GetFileName(localFilePath)}* to *{device.Name}*\r\r" +
+                                    $"Program Slot: *{programSlot}*\r" +
+                                    $"Include Sig File: *{(progOptionsDialog.IncludeSIGFile.IsChecked == true ? "Yes" : "No")}*\r" +
+                                    $"Overwrite IP Table: *{(progOptionsDialog.OverwriteIPTable.IsChecked == true ? "Yes" : "No")}*\r\r" +
+                                    $"***Are these options correct?***";
+                                    MessageBoxResult optionsConfirmedResponse = ConfirmationDialog.Show(programOptionMessage, "Confirm Program Options", MessageBoxButton.YesNo);
                                     if (optionsConfirmedResponse == MessageBoxResult.Yes) { programOptionsConfirmed = true; }
                                 }
                             }
@@ -261,7 +322,9 @@ namespace CrestronDeploymentTool.Model.Deployment
                     }
                     else
                     {
-                        MessageBoxResult cancelOperation = MessageBox.Show($"Listen here, you gotta select a program if you want me to send it. Do you want to send a new program to {device.Name} or not?", "Cancel Program Update", MessageBoxButton.YesNo);
+                        MessageBoxResult cancelOperation = ConfirmationDialog.Show($"Listen here, you *gotta* select a program if you want me to send it. Do you want to send a new program to {device.Name} or not?", "Cancel Program Update", MessageBoxButton.YesNo);
+                        //old version using default messagebox
+                        //MessageBoxResult cancelOperation = MessageBox.Show($"Listen here, you gotta select a program if you want me to send it. Do you want to send a new program to {device.Name} or not?", "Cancel Program Update", MessageBoxButton.YesNo);
                         if (cancelOperation == MessageBoxResult.No) { canceled = true; }
                     }
                 }
@@ -318,7 +381,9 @@ namespace CrestronDeploymentTool.Model.Deployment
 
             if (targetDevices.Count > 0)
             {
-                MessageBoxResult result = MessageBox.Show("Do you want to update/configure IP Table entries?", "Update IP Table Entries", MessageBoxButton.YesNo);
+                MessageBoxResult result = ConfirmationDialog.Show("Do you want to update/configure IP Table entries?", "Update IP Table Entries", MessageBoxButton.YesNo);
+                //old version using default messagebox
+                //MessageBoxResult result = MessageBox.Show("Do you want to update/configure IP Table entries?", "Update IP Table Entries", MessageBoxButton.YesNo);
                 if (result == MessageBoxResult.Yes) { DeploymentWizard.UserInterfaceIPTable(targetDevices); }
             }
 
@@ -354,12 +419,16 @@ namespace CrestronDeploymentTool.Model.Deployment
 
                     if (result == true)
                     {
-                        MessageBoxResult confirmSelection = MessageBox.Show($"You want update the IP Table on {device.Name}, using the following IP ID:\r\r{newIPID}\r\rThis touchpanel will connect to: {newParent}\r\rIs this correct?", "Confirm IP ID Entry", MessageBoxButton.YesNo);
+                        MessageBoxResult confirmSelection = ConfirmationDialog.Show($"You want update the IP Table on {device.Name}, using the following IP ID:\r\r*{newIPID}*\r\rThis touchpanel will connect to: **{newParent}**\r\r***Is this correct***?", "Confirm IP ID Entry", MessageBoxButton.YesNo);
+                        //old version using default messagebox
+                        //MessageBoxResult confirmSelection = MessageBox.Show($"You want update the IP Table on {device.Name}, using the following IP ID:\r\r{newIPID}\r\rThis touchpanel will connect to: {newParent}\r\rIs this correct?", "Confirm IP ID Entry", MessageBoxButton.YesNo);
                         if (confirmSelection == MessageBoxResult.Yes) { confirmed = true; }
                     }
                     else
                     {
-                        MessageBoxResult cancelOperation = MessageBox.Show($"Listen here, you gotta enter an IP ID if you want me to send it. Do you want to send a new IP Table to {device.Name} or not?", "Cancel IP Table Adjustment", MessageBoxButton.YesNo);
+                        MessageBoxResult cancelOperation = ConfirmationDialog.Show($"Listen here, you *gotta* enter an IP ID if you want me to send it. Do you want to send a new IP Table to {device.Name} or not?", "Cancel IP Table Adjustment", MessageBoxButton.YesNo);
+                        //old version using default messagebox
+                        //MessageBoxResult cancelOperation = MessageBox.Show($"Listen here, you gotta enter an IP ID if you want me to send it. Do you want to send a new IP Table to {device.Name} or not?", "Cancel IP Table Adjustment", MessageBoxButton.YesNo);
                         if (cancelOperation == MessageBoxResult.No) { canceled = true; }
                     }
                 }
@@ -368,13 +437,13 @@ namespace CrestronDeploymentTool.Model.Deployment
 
                 if (confirmed && newIPID != String.Empty)
                 {
-                    DeviceDeploymentAction action = new DeviceDeploymentAction(DeploymentWizardActions.SendConsoleCommands, $"Clear Current IP Table on {device.Name} @ {device.IpAddress}");
-                    action.AssignAction((token) => { return DeviceDeploymentAction.SendConsoleCommand($"iptable -c", device, action, token); });
-                    device.DeploymentActions.Add(action);
+                    DeviceDeploymentAction iptableAction = new DeviceDeploymentAction(DeploymentWizardActions.SendConsoleCommands, $"Clear Current IP Table on {device.Name} @ {device.IpAddress}");
+                    iptableAction.AssignAction((token) => { return DeviceDeploymentAction.SendConsoleCommand($"iptable -c", device, iptableAction, token); });
+                    device.DeploymentActions.Add(iptableAction);
 
-                    action = new DeviceDeploymentAction(DeploymentWizardActions.SendConsoleCommands, $"Set IP Table Entry {newIPID} -> {newParent} on {device.Name} @ {device.IpAddress}");
-                    action.AssignAction((token) => { return DeviceDeploymentAction.SendConsoleCommand($"addm {newIPID} {newParent}", device, action, token); });
-                    device.DeploymentActions.Add(action);
+                    DeviceDeploymentAction setIPTableAction = new DeviceDeploymentAction(DeploymentWizardActions.SendConsoleCommands, $"Set IP Table Entry {newIPID} -> {newParent} on {device.Name} @ {device.IpAddress}");
+                    setIPTableAction.AssignAction((token) => { return DeviceDeploymentAction.SendConsoleCommand($"addm {newIPID} {newParent}", device, setIPTableAction, token); });
+                    device.DeploymentActions.Add(setIPTableAction);
                 }
             });
 
@@ -412,12 +481,16 @@ namespace CrestronDeploymentTool.Model.Deployment
 
                     if (result == true)
                     {
-                        MessageBoxResult confirmSelection = MessageBox.Show($"You want update VTZ // CH5Z files on {model} devices, using the following file:\r\r{Path.GetFileName(localFilePath)}\r\rIs this the correct file?", "Confirm VTZ // CH5Z File Selection", MessageBoxButton.YesNo);
+                        MessageBoxResult confirmSelection = ConfirmationDialog.Show($"You want update VTZ // CH5Z files on {model} devices, using the following file:\r\r*{Path.GetFileName(localFilePath)}*\r\r***Is this the correct file?***", "Confirm VTZ // CH5Z File Selection", MessageBoxButton.YesNo);
+                        //old version using default messagebox
+                        //MessageBoxResult confirmSelection = MessageBox.Show($"You want update VTZ // CH5Z files on {model} devices, using the following file:\r\r{Path.GetFileName(localFilePath)}\r\rIs this the correct file?", "Confirm VTZ // CH5Z File Selection", MessageBoxButton.YesNo);
                         if (confirmSelection == MessageBoxResult.Yes) { confirmed = true; }
                     }
                     else
                     {
-                        MessageBoxResult cancelOperation = MessageBox.Show($"Listen here, you gotta select a file if you want me to send it. Do you want to send a display file to {model} devices or not?", "Cancel VTZ // CH5Z File Send", MessageBoxButton.YesNo);
+                        MessageBoxResult cancelOperation = ConfirmationDialog.Show($"Listen here, you gotta select a file if you want me to send it. Do you want to send a display file to {model} devices or not?", "Cancel VTZ // CH5Z File Send", MessageBoxButton.YesNo);
+                        //old version using default messagebox
+                        //MessageBoxResult cancelOperation = MessageBox.Show($"Listen here, you gotta select a file if you want me to send it. Do you want to send a display file to {model} devices or not?", "Cancel VTZ // CH5Z File Send", MessageBoxButton.YesNo);
                         if (cancelOperation == MessageBoxResult.No) { canceled = true; }
                     }
                 }
@@ -474,7 +547,9 @@ namespace CrestronDeploymentTool.Model.Deployment
                     localFilePath = dialog.FileName;
 
                     if (result == true) {
-                        MessageBoxResult confirmSelection = MessageBox.Show($"You have selected the following configuration file:\r\r{Path.GetFileName(localFilePath)}\r\rIs this the correct file?", "Confirm Configuration File Selection", MessageBoxButton.YesNo);
+                        MessageBoxResult confirmSelection = ConfirmationDialog.Show($"You have selected the following configuration file:\r\r*{Path.GetFileName(localFilePath)}*\r\r***Is this the correct file?***", "Confirm Configuration File Selection", MessageBoxButton.YesNo);
+                        //old version using default messagebox
+                        //MessageBoxResult confirmSelection = MessageBox.Show($"You have selected the following configuration file:\r\r{Path.GetFileName(localFilePath)}\r\rIs this the correct file?", "Confirm Configuration File Selection", MessageBoxButton.YesNo);
                         
                         if (confirmSelection == MessageBoxResult.Yes) 
                         { 
@@ -485,7 +560,9 @@ namespace CrestronDeploymentTool.Model.Deployment
                         }
                     }
                     else {
-                        MessageBoxResult cancelOperation = MessageBox.Show("Listen here, you gotta select a file if you want me to send it. Do you want to send a config file to this device or not?", "Cancel Configuration File Send", MessageBoxButton.YesNo);
+                        MessageBoxResult cancelOperation = ConfirmationDialog.Show("Listen here, you *gotta* select a file if you want me to send it. Do you want to send a config file to this device or not?", "Cancel Configuration File Send", MessageBoxButton.YesNo);
+                        //old version using default messagebox
+                        //MessageBoxResult cancelOperation = MessageBox.Show("Listen here, you gotta select a file if you want me to send it. Do you want to send a config file to this device or not?", "Cancel Configuration File Send", MessageBoxButton.YesNo);
                         if (cancelOperation == MessageBoxResult.No) { canceled = true; }
                     }
                 }
@@ -537,12 +614,16 @@ namespace CrestronDeploymentTool.Model.Deployment
 
                     if (result == true)
                     {
-                        MessageBoxResult confirmSelection = MessageBox.Show($"You want update firmware on {model} devices, using the following firmware file:\r\r{Path.GetFileName(localFilePath)}\r\rIs this the correct file?", "Confirm Firmware File Selection", MessageBoxButton.YesNo);
+                        MessageBoxResult confirmSelection = ConfirmationDialog.Show($"You want update firmware on {model} devices, using the following firmware file:\r\r*{Path.GetFileName(localFilePath)}*\r\r***Is this the correct file?***", "Confirm Firmware File Selection", MessageBoxButton.YesNo);
+                        //old version using default messagebox
+                        //MessageBoxResult confirmSelection = MessageBox.Show($"You want update firmware on {model} devices, using the following firmware file:\r\r{Path.GetFileName(localFilePath)}\r\rIs this the correct file?", "Confirm Firmware File Selection", MessageBoxButton.YesNo);
                         if (confirmSelection == MessageBoxResult.Yes) { confirmed = true; }
                     }
                     else
                     {
-                        MessageBoxResult cancelOperation = MessageBox.Show($"Listen here, you gotta select a file if you want me to send it. Do you want to send a firmware file to {model} devices or not?", "Cancel Configuration File Send", MessageBoxButton.YesNo);
+                        MessageBoxResult cancelOperation = ConfirmationDialog.Show($"Listen here, you gotta select a file if you want me to send it. Do you want to send a firmware file to {model} devices or not?", "Cancel Configuration File Send", MessageBoxButton.YesNo);
+                        //old version using default messagebox
+                        //MessageBoxResult cancelOperation = MessageBox.Show($"Listen here, you gotta select a file if you want me to send it. Do you want to send a firmware file to {model} devices or not?", "Cancel Configuration File Send", MessageBoxButton.YesNo);
                         if (cancelOperation == MessageBoxResult.No) { canceled = true; }
                     }
                 }
@@ -581,7 +662,308 @@ namespace CrestronDeploymentTool.Model.Deployment
         public static bool IPConfiguration(bool prompt)
         {
             bool canceled = false;
+
+            //prompt for target devices [filter by touchpanel for now] -- add support for processors in the future
+            List<CrestronDevice> targetDevices = DetermineTargetDevices(prompt, DeploymentWizardActions.SendProgramming, DiscoveredDevices.ProgrammingCapableDevices);
+            //create a list of canceled devices
+            List<CrestronDevice> canceledDevices = new List<CrestronDevice>();
+            //loop through each target device to determine what configuration file should be sent
+            targetDevices.ForEach(device =>
+            {
+                bool confirmed = false;
+                bool canceled = false;
+                bool enableDHCP = true;
+                bool updateIPAddress = false;
+                bool updateSubnetMask = false;
+                bool updateGateway = false;
+                bool updateDNSPrimary = false;
+                bool updateDNSSecondary = false;
+                bool updateHostname = false;
+                string ipAddress = String.Empty;
+                string subnetMask = String.Empty;
+                string gateway = String.Empty;
+                string dnsPrimary = String.Empty;
+                string dnsSecondary = String.Empty;
+                string hostname = String.Empty;
+
+                //make sure user confirms or cancels the operation
+                while (!confirmed && !canceled)
+                {
+                    //create ip configuration window and wait for result
+                    NetworkConfiguration configuration = new NetworkConfiguration();
+                    bool? result = configuration.ShowDialog();
+
+                    if (result == true)
+                    {
+                        string message = $"Your provided configuration will perform the following actions:\r\r";
+
+                        message += $"*{(configuration.EnableDHCP.IsChecked == true ? "Enable" : "Disable")}* DHCP";
+
+                        if (configuration.EnableDHCP.IsChecked != null) { enableDHCP = (bool)configuration.EnableDHCP.IsChecked; }
+
+                        if (configuration.HostnameEntered.Text != String.Empty) {
+                            hostname = configuration.HostnameEntered.Text;
+                            message += $"\r\rUpdate Hostname: *{hostname}*";
+                            updateHostname = true;
+                        }
+                        
+                        if (configuration.EnableDHCP.IsChecked == false) {
+                            if (configuration.IPAddressEntered.Text != String.Empty) {
+                                ipAddress = configuration.IPAddressEntered.Text;
+                                message += $"\r\rUpdate IP Address: *{ipAddress}*";
+                                updateIPAddress = true;
+                            }
+                            if (configuration.SubnetMaskEntered.Text != String.Empty) {
+                                subnetMask = configuration.SubnetMaskEntered.Text;
+                                message += $"\r\rUpdate Subnet Mask: *{subnetMask}*";
+                                updateSubnetMask = true;
+                            }
+                            if (configuration.DefaultGatewayEntered.Text != String.Empty) {
+                                gateway = configuration.DefaultGatewayEntered.Text;
+                                message += $"\r\rUpdate Default Gateway IP Address: *{gateway}*";
+                                updateGateway = true;
+                            }
+                            if (configuration.PrimaryDNSEntered.Text != String.Empty) {
+                                dnsPrimary = configuration.PrimaryDNSEntered.Text;
+                                message += $"\r\rUpdate Primary DNS Server IP Address: *{dnsPrimary}*";
+                                updateDNSPrimary = true;
+                            }
+                            if (configuration.SecondaryDNSEntered.Text != String.Empty) {
+                                dnsSecondary = configuration.SecondaryDNSEntered.Text;
+                                message += $"\r\rUpdate Secondary DNS Server IP Address: *{dnsSecondary}*";
+                                updateDNSSecondary = true;
+                            }
+
+                            message += "\r\r***Does this all look correct?***";
+                        }
+
+                        MessageBoxResult confirmSelection = ConfirmationDialog.Show(message, "Confirm IP Configuration", MessageBoxButton.YesNo);
+                        //old version using default messagebox
+                        //MessageBoxResult confirmSelection = MessageBox.Show(message, "Confirm IP Configuration", MessageBoxButton.YesNo);
+
+                        if (confirmSelection == MessageBoxResult.Yes) { confirmed = true; }
+                    }
+                    else
+                    {
+                        MessageBoxResult cancelOperation = ConfirmationDialog.Show($"Listen here, you gotta provide IP configuration details if you want me to adjust things. Do you want to send a new IP configuration to {device.Name} or not?", "Cancel IP Configuration Update", MessageBoxButton.YesNo);
+                        //old version using default messagebox
+                        //MessageBoxResult cancelOperation = MessageBox.Show($"Listen here, you gotta provide IP configuration details if you want me to adjust things. Do you want to send a new IP configuration to {device.Name} or not?", "Cancel IP Configuration Update", MessageBoxButton.YesNo);
+                        if (cancelOperation == MessageBoxResult.No) { canceled = true; }
+                    }
+                }
+
+                if (canceled) { canceledDevices.Add(device); }
+
+                if (confirmed)
+                {
+                    //force dhcp state DHCP should be enabled
+                    DeviceDeploymentAction dhcp = new DeviceDeploymentAction(DeploymentWizardActions.SendConsoleCommands, $"{(enableDHCP == true ? "Enable" : "Disable")} DHCP");
+                    dhcp.AssignAction((token) => { return DeviceDeploymentAction.SendConsoleCommand($"dhcp 0 {(enableDHCP == true ? "on" : "off")}", device, dhcp, token); });
+                    device.DeploymentActions.Add(dhcp);
+
+                    if (updateHostname)
+                    {
+                        DeviceDeploymentAction action = new DeviceDeploymentAction(DeploymentWizardActions.SendConsoleCommands, $"Update Hostname: {hostname}");
+                        action.AssignAction((token) => { return DeviceDeploymentAction.SendConsoleCommand($"hostname {hostname}", device, action, token); });
+                        device.DeploymentActions.Add(action);
+                    }
+
+                    //if dhcp is not enabled
+                    if (!enableDHCP)
+                    {
+                        if (updateIPAddress)
+                        {
+                            DeviceDeploymentAction action = new DeviceDeploymentAction(DeploymentWizardActions.SendConsoleCommands, $"Update IP Address: {ipAddress}");
+                            action.AssignAction((token) => { return DeviceDeploymentAction.SendConsoleCommand($"ipaddr 0 {ipAddress}", device, action, token); });
+                            device.DeploymentActions.Add(action);
+                        }
+
+                        if (updateSubnetMask)
+                        {
+                            DeviceDeploymentAction action = new DeviceDeploymentAction(DeploymentWizardActions.SendConsoleCommands, $"Update Subnet Mask: {subnetMask}");
+                            action.AssignAction((token) => { return DeviceDeploymentAction.SendConsoleCommand($"ipmask 0 {subnetMask}", device, action, token); });
+                            device.DeploymentActions.Add(action);
+                        }
+
+                        if (updateGateway)
+                        {
+                            DeviceDeploymentAction action = new DeviceDeploymentAction(DeploymentWizardActions.SendConsoleCommands, $"Update Default Gateway: {gateway}");
+                            action.AssignAction((token) => { return DeviceDeploymentAction.SendConsoleCommand($"defr 0 {gateway}", device, action, token); });
+                            device.DeploymentActions.Add(action);
+                        }
+
+                        if (updateDNSPrimary)
+                        {
+                            DeviceDeploymentAction action = new DeviceDeploymentAction(DeploymentWizardActions.SendConsoleCommands, $"Update DNS Server 1: {dnsPrimary}");
+                            action.AssignAction((token) => { return DeviceDeploymentAction.SendConsoleCommand($"adddns {dnsPrimary}", device, action, token); });
+                            device.DeploymentActions.Add(action);
+                        }
+
+                        if (updateDNSSecondary)
+                        {
+                            DeviceDeploymentAction action = new DeviceDeploymentAction(DeploymentWizardActions.SendConsoleCommands, $"Update DNS Server 2: {dnsSecondary}");
+                            action.AssignAction((token) => { return DeviceDeploymentAction.SendConsoleCommand($"adddns {dnsSecondary}", device, action, token); });
+                            device.DeploymentActions.Add(action);
+                        }
+                    }
+
+                    DeviceDeploymentAction reboot = new DeviceDeploymentAction(DeploymentWizardActions.SendConsoleCommands, $"Reboot Device");
+                    reboot.AssignAction((token) => { return DeviceDeploymentAction.SendConsoleCommand("reboot", device, reboot, token); });
+                    device.DeploymentActions.Add(reboot);
+                }
+            });
+
+            if (targetDevices.Count == canceledDevices.Count) { canceled = true; }
+
             return canceled;
+        }
+    
+        /// <summary>
+        /// a wizard for guiding the user through provisioning a new device, assigning the administrator username and password
+        /// </summary>
+        /// <param name="prompt"></param>
+        /// <returns></returns>
+        public static bool DeviceProvisioning(bool prompt)
+        {
+            bool canceled = false;
+
+            //prompt for target devices [filter by touchpanel for now] -- add support for processors in the future
+            List<CrestronDevice> targetDevices = DetermineTargetDevices(prompt, DeploymentWizardActions.ProvisionNewDevice, DiscoveredDevices.AnyCrestronDevice);
+            //create a list of canceled devices
+            List<CrestronDevice> canceledDevices = new List<CrestronDevice>();
+            //loop through each target device to determine what configuration file should be sent
+            targetDevices.ForEach(device =>
+            {
+                bool confirmed = false;
+                bool canceled = false;
+
+                //default credentials, might need to be updated at some point
+                string user = "admin";
+                string pass = "CCS$erv!ce";
+                //string pass = "Av!dex$erv!ce";
+
+                //make sure user confirms or cancels the operation
+                while (!confirmed && !canceled)
+                {
+                    //prompt the user to confirm the normal default credentials
+                    if (canceled == false)
+                    {
+                        string message = $"We will use the following credentials to create an *administrator* account on the Crestron devices you wish to provision:\r\rUsername: **{user}**\r\rPassword: **{pass}**\r\r***Is this correct?***";
+
+                        MessageBoxResult confirmSelection = ConfirmationDialog.Show(message, "Confirm New Credentials", MessageBoxButton.YesNo);
+                        //old version using default messagebox
+                        //MessageBoxResult confirmSelection = MessageBox.Show(message, "Confirm New Credentials", MessageBoxButton.YesNo);
+
+                        if (confirmSelection == MessageBoxResult.Yes) { confirmed = true; }
+                        else
+                        {
+                            //create credential window and wait for result
+                            if (mainWindow != null) { (user, pass, canceled) = ConnectionDetails(mainWindow, "Please provide credentials to be assigned to the **administrator account** on the **new devices** you have selected to provision."); }
+                        }
+                    }
+                }                    
+
+                if (canceled) { canceledDevices.Add(device); }
+
+                if (confirmed)
+                {
+                    DeviceDeploymentAction action = new DeviceDeploymentAction(DeploymentWizardActions.ProvisionNewDevice, $"Provision {device.Name} @ {device.IpAddress} with new credentials | Username: {user} Password: {pass}");
+                    action.AssignAction((token) => { return DeviceDeploymentAction.ProvisionNewDevice(user, pass, device, action, token); });
+                    device.DeploymentActions.Add(action);
+                }
+            });
+
+            if (targetDevices.Count == canceledDevices.Count) { canceled = true; }
+
+            return canceled;
+        }
+        
+        /// <summary>
+        /// the main deployment wizard function
+        /// </summary>
+        /// <param name="username">ssh username</param>
+        /// <param name="password">ssh password</param>
+        /// <param name="parent">parent window caller</param>
+        public static (string?, string?) ConfigureDeployment(string? username, string? password, MainWindow parent)
+        {
+            List<DeploymentWizardAction> selectedActions = DeploymentWizardActions.Options.Where(i => i.IsSelected).ToList();
+            bool cancel = false;
+
+            //assign only the parent and let the user determine if they need to change the default crestron credentials after being prompted later
+            if (selectedActions.Count == 1 && selectedActions.Any(item => item.Name == DeploymentWizardActions.ProvisionNewDevice)) { 
+                DeploymentWizard.mainWindow = parent;
+                username = Constants.DefaultUsername; 
+                password = Constants.DefaultPassword;
+            }
+            //if we have selected more than one action, even if some of those actions are provisioning devices
+            else
+            {
+                //if both of these are null, this is the first run
+                if (password == null && password == null) {
+
+                    MessageBoxResult result = ConfirmationDialog.Show("Would you like to use the *standard* credentials, or enter ***custom*** credentials to deploy to these devices?", "Use Default Credentials?", MessageBoxButton.YesNo);
+                    //old version using default messagebox
+                    //MessageBoxResult result = MessageBox.Show("Would you like to use the standard credentials, or enter custom credentials to deploy to these devices?", "Use Default Credentials?", MessageBoxButton.YesNo);
+                    //prompt the user for custom credentials
+                    if (result == MessageBoxResult.No) { (username, password, cancel) = DeploymentWizard.ConnectionDetails(parent); }
+                    //assign the default credentials and bypass credential entry
+                    else { username = Constants.DefaultUsername; password = Constants.DefaultPassword; }
+                }
+                //if this is not the first run, provide a quick confirmation to re-use the existing credentials
+                else
+                {
+                    MessageBoxResult result = ConfirmationDialog.Show($"Do you want to re-use the credentials you provided *previously*?\r\rUsername: *{username}*\r\rPassword:***{password}***", "Use Existing Credentials", MessageBoxButton.YesNo);
+                    //old version using default messagebox
+                    //MessageBoxResult result = MessageBox.Show($"Do you want to re-use the credentials you provided previously?\r\rUsername: {username}\r\rPassword:{password}", "Use Existing Credentials", MessageBoxButton.YesNo);
+                    if (result == MessageBoxResult.No) { (username, password, cancel) = DeploymentWizard.ConnectionDetails(parent); }
+                }
+            }
+
+            //if the user cancels the operation, exit the wizard
+            if (cancel) { return (null, null); }
+
+            //determine if we should provide a re-selection dialog for each of the deployment actions (users may want to only deploy to certain devices
+            bool reselectTargetDevices = selectedActions.Count > 1;
+
+            //run through the wizard for each deployment action selected
+            selectedActions.ForEach(action =>
+            {
+                bool canceled = false;
+
+                switch (action.Name)
+                {
+                    case (DeploymentWizardActions.ProvisionNewDevice):
+                        canceled = DeploymentWizard.DeviceProvisioning(reselectTargetDevices);
+                        Log.Debug($"{prefix} Device Provisioning {(canceled == true ? "Canceled" : "Ready")}");
+                        break;
+                    case (DeploymentWizardActions.SendConsoleCommands):
+                        canceled = DeploymentWizard.ConsoleCommands(reselectTargetDevices);
+                        Log.Debug($"{prefix} Console Command Deployment {(canceled == true ? "Canceled" : "Ready")}");
+                        break;
+                    case (DeploymentWizardActions.SendConfigurationFiles):
+                        canceled = DeploymentWizard.ConfigurationFiles(reselectTargetDevices);
+                        Log.Debug($"{prefix} Configuration File Deployment {(canceled == true ? "Canceled" : "Ready")}");
+                        break;
+                    case (DeploymentWizardActions.SendUserInterfaces):
+                        canceled = DeploymentWizard.UserInterfaces(reselectTargetDevices);
+                        Log.Debug($"{prefix} User Interface Deployment {(canceled == true ? "Canceled" : "Ready")}");
+                        break;
+                    case (DeploymentWizardActions.SendProgramming):
+                        canceled = DeploymentWizard.Programming(reselectTargetDevices);
+                        Log.Debug($"{prefix} Programming Deployment {(canceled == true ? "Canceled" : "Ready")}");
+                        break;
+                    case (DeploymentWizardActions.SendFirmware):
+                        canceled = DeploymentWizard.Firmware(reselectTargetDevices);
+                        Log.Debug($"{prefix} Firmware Deployment {(canceled == true ? "Canceled" : "Ready")}");
+                        break;
+                    case (DeploymentWizardActions.SetNetworkInformation):
+                        canceled = DeploymentWizard.IPConfiguration(reselectTargetDevices);
+                        Log.Debug($"{prefix} IP Configuration Update {(canceled == true ? "Canceled" : "Ready")}");
+                        break;
+                }
+            });
+
+            return (username, password);
         }
     }
 }

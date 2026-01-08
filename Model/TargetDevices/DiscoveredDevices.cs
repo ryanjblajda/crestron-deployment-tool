@@ -10,6 +10,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Data;
 
 namespace CrestronDeploymentTool.Model.TargetDevices
@@ -40,6 +41,7 @@ namespace CrestronDeploymentTool.Model.TargetDevices
             "STS-"   // Early wireless SmarTouch panels
         ];
 
+        public static readonly ImmutableList<string> AnyCrestronDevice = UserInterfaceCapableDevices.Concat(ProgrammingCapableDevices).ToImmutableList();
         public static ObservableCollection<CrestronDevice> AvailableDiscoveredDevices { get; }
         public static ObservableCollection<CrestronDevice> SelectedTargetDevices { get; }
 
@@ -48,6 +50,69 @@ namespace CrestronDeploymentTool.Model.TargetDevices
             AvailableDiscoveredDevices = new ObservableCollection<CrestronDevice>();
             SelectedTargetDevices = new ObservableCollection<CrestronDevice>();
             AvailableDiscoveredDevices.CollectionChanged += OnDiscoveredDevicesChanged;
+
+            if (DesignerProperties.GetIsInDesignMode(new DependencyObject())) { LoadDebugElements(); }
+        }
+
+        /// <summary>
+        /// loads debugging elements for design time
+        /// </summary>
+        private static void LoadDebugElements()
+        {
+            AddDevice(new CrestronDevice("test device 1", "TS-1070", "192.168.1.1") { 
+                IsSelected = true,
+                DeploymentActions = { 
+                    new DeviceDeployment.DeviceDeploymentAction("action 1", "action description 1"),
+                    new DeviceDeployment.DeviceDeploymentAction("action 2", "action description 2"),
+                    new DeviceDeployment.DeviceDeploymentAction("action 3", "action description 3"),
+                    new DeviceDeployment.DeviceDeploymentAction("action 4", "action description 4"),
+                    new DeviceDeployment.DeviceDeploymentAction("action 5", "action description 5"),
+                } 
+            }, SelectedTargetDevices);
+            AddDevice(new CrestronDevice("test device 2", "CP4N", "192.168.1.2")
+            {
+                IsSelected = true,
+                DeploymentActions = {
+                    new DeviceDeployment.DeviceDeploymentAction("action 1", "action description 1"),
+                    new DeviceDeployment.DeviceDeploymentAction("action 2", "action description 2"),
+                    new DeviceDeployment.DeviceDeploymentAction("action 3", "action description 3"),
+                    new DeviceDeployment.DeviceDeploymentAction("action 4", "action description 4"),
+                    new DeviceDeployment.DeviceDeploymentAction("action 5", "action description 5"),
+                }
+            }, SelectedTargetDevices);
+            AddDevice(new CrestronDevice("test device 3", "RMC3", "192.168.1.3")
+            {
+                IsSelected = true,
+                DeploymentActions = {
+                    new DeviceDeployment.DeviceDeploymentAction("action 1", "action description 1"),
+                    new DeviceDeployment.DeviceDeploymentAction("action 2", "action description 2"),
+                    new DeviceDeployment.DeviceDeploymentAction("action 3", "action description 3"),
+                    new DeviceDeployment.DeviceDeploymentAction("action 4", "action description 4"),
+                    new DeviceDeployment.DeviceDeploymentAction("action 5", "action description 5"),
+                }
+            }, SelectedTargetDevices);
+            AddDevice(new CrestronDevice("test device 4", "TS-1060", "192.168.1.4")
+            {
+                IsSelected = true,
+                DeploymentActions = {
+                    new DeviceDeployment.DeviceDeploymentAction("action 1", "action description 1"),
+                    new DeviceDeployment.DeviceDeploymentAction("action 2", "action description 2"),
+                    new DeviceDeployment.DeviceDeploymentAction("action 3", "action description 3"),
+                    new DeviceDeployment.DeviceDeploymentAction("action 4", "action description 4"),
+                    new DeviceDeployment.DeviceDeploymentAction("action 5", "action description 5"),
+                }
+            }, SelectedTargetDevices);
+            AddDevice(new CrestronDevice("test device 5", "TS-1052", "192.168.1.5")
+            {
+                IsSelected = true,
+                DeploymentActions = {
+                    new DeviceDeployment.DeviceDeploymentAction("action 1", "action description 1"),
+                    new DeviceDeployment.DeviceDeploymentAction("action 2", "action description 2"),
+                    new DeviceDeployment.DeviceDeploymentAction("action 3", "action description 3"),
+                    new DeviceDeployment.DeviceDeploymentAction("action 4", "action description 4"),
+                    new DeviceDeployment.DeviceDeploymentAction("action 5", "action description 5"),
+                }
+            }, SelectedTargetDevices);
         }
 
         /// <summary>
@@ -62,6 +127,7 @@ namespace CrestronDeploymentTool.Model.TargetDevices
                 foreach (CrestronDevice device in e.NewItems)
                 {
                     device.PropertyChanged += OnDevicePropertyChanged;
+                    AddDevice(device, AvailableDiscoveredDevices);
                 }
             }
         }
@@ -75,10 +141,9 @@ namespace CrestronDeploymentTool.Model.TargetDevices
         {
             CrestronDevice? device = ((CrestronDevice?)sender);
 
-            if (device != null) {
-                if (device.IsSelected) { 
-                    if (!SelectedTargetDevices.Contains(device)) { SelectedTargetDevices.Add(device); } 
-                }
+            if (device != null)
+            {
+                if (device.IsSelected) { AddDevice(device, SelectedTargetDevices); }
                 else { SelectedTargetDevices.Remove(device); }
             }
         }
@@ -87,13 +152,13 @@ namespace CrestronDeploymentTool.Model.TargetDevices
         /// addes a device to the discovered device list, provided it did not already exist
         /// </summary>
         /// <param name="device">the new device</param>
-        public static void AddDevice(CrestronDevice device)
+        public static void AddDevice(CrestronDevice device, ObservableCollection<CrestronDevice> targetList)
         {
-            if (!AvailableDiscoveredDevices.Any(d => d.IpAddress == device.IpAddress || d.Name == device.Name))
+            if (!targetList.Any(d => d.IpAddress == device.IpAddress || d.Name == device.Name))
             {
-                lock (AvailableDiscoveredDevices)
+                lock (targetList)
                 {
-                    AvailableDiscoveredDevices.Add(device);
+                    targetList.Add(device);
                 }
             }
         }

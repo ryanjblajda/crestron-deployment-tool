@@ -7,91 +7,98 @@
         xmlns:device="clr-namespace:CrestronDeploymentTool.Model.TargetDevices"
         xmlns:deployment="clr-namespace:CrestronDeploymentTool.Model.Deployment"
         mc:Ignorable="d"
-        Title="DeploymentStatus" Height="450" Width="800">
+        MaxWidth="2560"
+        Title="DeploymentStatus">
     <Grid HorizontalAlignment="Stretch" Width="Auto" Background="#303030">
         <Grid.RowDefinitions>
             <RowDefinition Height="5*"></RowDefinition>
-            <RowDefinition></RowDefinition>
+            <RowDefinition MaxHeight="75"></RowDefinition>
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition></ColumnDefinition>
             <ColumnDefinition></ColumnDefinition>
             <ColumnDefinition></ColumnDefinition>
         </Grid.ColumnDefinitions>
-        <ListView Grid.Row="0" Grid.ColumnSpan="3" HorizontalAlignment="Stretch" BorderThickness="0" Background="Transparent" ItemsSource="{x:Static device:DiscoveredDevices.SelectedTargetDevices}">
-            <ListView.Resources>
-                <Style TargetType="ScrollBar" BasedOn="{StaticResource ModernScrollBarDefaultStyle}" />
-            </ListView.Resources>
-            <ListView.ItemContainerStyle>
-                <Style TargetType="ListViewItem">
-                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                    <Setter Property="HorizontalAlignment" Value="Stretch"/>
-                    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
-                    <Setter Property="BorderThickness" Value="0"/>
-                    <Style.Triggers>
-                        <Trigger Property="IsMouseOver" Value="True">
-                            <Setter Property="Background" Value="Transparent"></Setter>
-                        </Trigger>
-                        <Trigger Property="IsSelected" Value="True">
-                            <Setter Property="Background" Value="Transparent"></Setter>
-                        </Trigger>
-                    </Style.Triggers>
-                </Style>
-            </ListView.ItemContainerStyle>
-            <ListView.ItemTemplate>
-                <DataTemplate>
-                    <Border HorizontalAlignment="Stretch" Background="{StaticResource PrimaryBlue}" BorderThickness="0" CornerRadius="5" Padding="5">
-                        <StackPanel Background="Transparent" HorizontalAlignment="Stretch">
-                            <TextBlock FontSize="24" Foreground="White" Text="{Binding Name}" />
-                            <ListView BorderThickness="0" Background="Transparent" ItemsSource="{Binding DeploymentActions}">
-                                <ListView.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <WrapPanel Orientation="Horizontal" HorizontalAlignment="Stretch" IsItemsHost="True" />
-                                    </ItemsPanelTemplate>
-                                </ListView.ItemsPanel>
-                                <ListView.ItemContainerStyle>
-                                    <Style TargetType="ListViewItem">
-                                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                                        <Setter Property="HorizontalAlignment" Value="Stretch"/>
-                                        <Setter Property="VerticalAlignment" Value="Stretch"/>
-                                        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
-                                        <Setter Property="BorderThickness" Value="0"/>
-                                        <Style.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Background" Value="Transparent"></Setter>
-                                            </Trigger>
-                                            <Trigger Property="IsSelected" Value="True">
-                                                <Setter Property="Background" Value="Transparent"></Setter>
-                                            </Trigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </ListView.ItemContainerStyle>
-                                <ListView.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border BorderThickness="0" CornerRadius="5" Background="{StaticResource SecondaryBlue}">
-                                            <StackPanel MaxWidth="600" Background="Transparent" Orientation="Vertical">
-                                                <TextBlock FontSize="14" Foreground="LightGray" Margin="5" Text="{Binding Name}"></TextBlock>
-                                                <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="LightGray" Margin="5" Text="{Binding Description}"></TextBlock>
-                                                <StackPanel Background="Transparent"  Orientation="Vertical">
-                                                    <StackPanel Background="Transparent" Orientation="Horizontal">
-                                                        <TextBlock FontSize="18" Foreground="White" Padding="5" Text="Status:"></TextBlock>
-                                                        <TextBlock TextWrapping="Wrap" FontSize="16" Foreground="Orange" Padding="5" Text="{Binding Status}"></TextBlock>
+        <ScrollViewer Grid.ColumnSpan="3"
+                      VerticalScrollBarVisibility="Auto" 
+                      HorizontalScrollBarVisibility="Disabled">
+            <ItemsControl  ItemsSource="{x:Static device:DiscoveredDevices.SelectedTargetDevices}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel Orientation="Horizontal"></WrapPanel>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Margin="5" HorizontalAlignment="Stretch" Background="{StaticResource PrimaryBlue}" BorderThickness="0" CornerRadius="5" Padding="5">
+                            <StackPanel Background="Transparent" HorizontalAlignment="Stretch">
+                                <TextBlock FontSize="24" Foreground="White" Text="{Binding Name}" />
+                                <ListView BorderThickness="0" Background="Transparent" ItemsSource="{Binding DeploymentActions}">
+                                    <ListView.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel Orientation="Vertical" HorizontalAlignment="Stretch" IsItemsHost="True" />
+                                        </ItemsPanelTemplate>
+                                    </ListView.ItemsPanel>
+                                    <ListView.ItemContainerStyle>
+                                        <Style TargetType="ListViewItem">
+                                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+                                            <Setter Property="VerticalAlignment" Value="Stretch"/>
+                                            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                                            <Setter Property="BorderThickness" Value="0"/>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" Value="Transparent"></Setter>
+                                                </Trigger>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter Property="Background" Value="Transparent"></Setter>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </ListView.ItemContainerStyle>
+                                    <ListView.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border ClipToBounds="True" BorderThickness="0" CornerRadius="5" Background="{StaticResource SecondaryBlue}">
+                                                <Grid Background="Transparent">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition/>
+                                                        <ColumnDefinition/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition/>
+                                                        <RowDefinition/>
+                                                    </Grid.RowDefinitions>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock VerticalAlignment="Center" FontSize="18" Foreground="Orange" Margin="5" Text="{Binding Name}"></TextBlock>
+                                                        <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" FontSize="12" Foreground="LightGray" Margin="5" Text="{Binding Description}"></TextBlock>
                                                     </StackPanel>
-                                                    <StackPanel Background="Transparent" Orientation="Horizontal">
-                                                        <TextBlock FontSize="18" Foreground="White" Padding="5" Text="Message:"></TextBlock>
-                                                        <TextBlock MaxWidth="400" TextWrapping="Wrap" FontSize="16" Foreground="Orange" Padding="5" Text="{Binding Message}"></TextBlock>
+                                                    <StackPanel Grid.Row="1" Background="Transparent"  Orientation="Horizontal">
+                                                        <StackPanel Background="Transparent" Orientation="Horizontal">
+                                                            <TextBlock VerticalAlignment="Center" FontSize="18" Foreground="White" Padding="5" Text="Status:"></TextBlock>
+                                                            <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" FontSize="16" Foreground="LightBlue" Padding="5" Text="{Binding Status}"></TextBlock>
+                                                        </StackPanel>
+                                                        <StackPanel Background="Transparent" Orientation="Horizontal">
+                                                            <TextBlock VerticalAlignment="Center" FontSize="18" Foreground="White" Padding="5" Text="Message:"></TextBlock>
+                                                            <TextBlock MaxWidth="450" VerticalAlignment="Center" TextWrapping="Wrap" FontSize="16" Foreground="LightBlue" Padding="5" Text="{Binding Message}"></TextBlock>
+                                                        </StackPanel>
                                                     </StackPanel>
-                                                </StackPanel>
-                                            </StackPanel>
-                                        </Border>
-                                    </DataTemplate>
-                                </ListView.ItemTemplate>
-                            </ListView>
-                        </StackPanel>
-                    </Border>
-                </DataTemplate>
-            </ListView.ItemTemplate>
-        </ListView>
+                                                    <StackPanel Grid.Column="1" Grid.RowSpan="2">
+                                                        <TextBlock VerticalAlignment="Center" FontSize="18" Foreground="Orange" Padding="5" Text="Console Output"></TextBlock>
+                                                        <ScrollViewer MaxHeight="125" VerticalContentAlignment="Top" HorizontalContentAlignment="Stretch" Background="#33000000" BorderThickness="0" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" Margin="5" Padding="5">
+                                                            <TextBlock MaxWidth="450" MinWidth="250"  VerticalAlignment="Top" TextAlignment="Justify" Padding="5" Foreground="WhiteSmoke" Text="{Binding Response}"></TextBlock>
+                                                        </ScrollViewer>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ListView.ItemTemplate>
+                                </ListView>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
         <Button IsEnabled="{Binding Idle}" Style="{StaticResource RemoveAllButtonStyle}" FontSize="22" Margin="5" Grid.Column="0" Grid.Row="1" Click="OnClearDeploymentActionsClicked">
             <TextBlock TextAlignment="Center" TextWrapping="Wrap" Text="Clear ALL Deployment Actions"></TextBlock>
         </Button>

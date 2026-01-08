@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Serilog;
 
 namespace CrestronDeploymentTool.Model.Deployment
 {
@@ -19,7 +14,7 @@ namespace CrestronDeploymentTool.Model.Deployment
 
         public DeploymentWizardAction(bool isChecked, string name, string description)
         {
-            Debug.WriteLine($"{prefix} Creating New Action: {name} -> {description}");
+            Log.Debug($"{prefix} Creating New Action: {name} -> {description}");
             IsSelected = isChecked;
             Name = name;
             Description = description;

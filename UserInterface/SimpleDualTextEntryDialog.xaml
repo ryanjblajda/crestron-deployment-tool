@@ -6,9 +6,11 @@
         xmlns:local="clr-namespace:CrestronDeploymentTool.UserInterface"
         mc:Ignorable="d"
         KeyDown="OnKeyDown"
-        Height="350" Width="650"
         ResizeMode="CanMinimize"
-        WindowStyle="SingleBorderWindow">
+        WindowStyle="SingleBorderWindow"
+        MaxHeight="800"
+        MaxWidth="600"
+        SizeToContent="WidthAndHeight">
     <Grid Background="#303030">
         <Grid.ColumnDefinitions>
             <ColumnDefinition></ColumnDefinition>
@@ -20,10 +22,10 @@
             <RowDefinition Height="*"></RowDefinition>
             <RowDefinition Height="1*"></RowDefinition>
         </Grid.RowDefinitions>
-        <TextBlock Padding="5" x:Name="Message" Foreground="White" Grid.Row="0" Grid.ColumnSpan="2" VerticalAlignment="Center" HorizontalAlignment="Stretch" TextAlignment="Center" TextWrapping="Wrap" FontSize="28"></TextBlock>
-        <TextBlock Padding="5" x:Name="MessagePromptPrimary" Foreground="White" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" TextAlignment="Center"  FontSize="20"  Grid.Row="1" Grid.Column="0"></TextBlock>
+        <TextBlock Margin="10" Padding="5" x:Name="Message" Foreground="White" Grid.Row="0" Grid.ColumnSpan="2" VerticalAlignment="Center" HorizontalAlignment="Stretch" TextAlignment="Center" TextWrapping="Wrap" FontSize="28"></TextBlock>
+        <TextBlock Margin="10" Padding="5" x:Name="MessagePromptPrimary" Foreground="White" VerticalAlignment="Center" HorizontalAlignment="Stretch" TextAlignment="Center"  FontSize="20"  Grid.Row="1" Grid.Column="0"></TextBlock>
         <TextBox TextChanged="OnTextEntryChanged" BorderThickness="0" x:Name="TextEnteredPrimary" Background="#33000000" Foreground="White" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" TextAlignment="Center" FontSize="20" Grid.Row="1" Grid.Column="1"></TextBox>
-        <TextBlock Padding="5" x:Name="MessagePromptSecondary" Foreground="White" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" TextAlignment="Center"  FontSize="20"  Grid.Row="2" Grid.Column="0"></TextBlock>
+        <TextBlock Margin="10" Padding="5" x:Name="MessagePromptSecondary" Foreground="White" VerticalAlignment="Center" HorizontalAlignment="Stretch" TextAlignment="Center"  FontSize="20"  Grid.Row="2" Grid.Column="0"></TextBlock>
         <TextBox TextChanged="OnTextEntryChanged" BorderThickness="0" x:Name="TextEnteredSecondary" Background="#33000000" Foreground="White" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" TextAlignment="Center" FontSize="20" Grid.Row="2" Grid.Column="1"></TextBox>
         <Button IsEnabled="False" x:Name="ConfirmButton" Margin="5" Style="{StaticResource DefaultButtonStyle }" FontSize="28" Grid.Row="3" Grid.Column="1" Content="Confirm Entry" Click="OnTextEntryConfirmed"></Button>
     </Grid>

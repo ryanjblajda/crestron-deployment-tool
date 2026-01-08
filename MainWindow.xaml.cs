@@ -7,6 +7,10 @@ using CrestronDeploymentTool.Model.TargetDevices;
 using CrestronDeploymentTool.UserInterface;
 using System.Diagnostics;
 using System.ComponentModel;
+using CrestronDeploymentTool.Utilities;
+using System.IO;
+using Serilog;
+using Serilog.Events;
 
 namespace CrestronDeploymentTool
 {
@@ -17,30 +21,63 @@ namespace CrestronDeploymentTool
     {
         private const string prefix = "Main |";
         private DeploymentStatusWindow? deploymentStatusWindow;
-        private DeploymentStatus deploymentStatus = new DeploymentStatus();
+        public DeploymentStatus Deployment = new DeploymentStatus();
         private CancellationTokenSource? deploymentCancellationToken;
 
-        private string? customUserName;
-        private string? customPassword;
+        private string? customUserName = null;
+        private string? customPassword = null;
 
         public MainWindow()
         {
             InitializeComponent();
             AvailableNetworkInterfaces.GetAvailableNetworkInterfaces();
             Loaded += OnWindowLoaded;
-            this.deploymentStatus.Running = false;
+            this.Deployment.Running = false;
             DiscoveredDevices.AvailableDiscoveredDevices.CollectionChanged += (s, e) => { ClearDeviceList.IsEnabled = DiscoveredDevices.AvailableDiscoveredDevices.Count > 0; };
+            ConfigureLogging();
         }
 
+        /// <summary>
+        /// configures the logging for the application
+        /// </summary>
+        private void ConfigureLogging()
+        {
+            string machineAppDataDirectory = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            string machineLoggingPath = Path.Combine(machineAppDataDirectory, "crestron-deployment-tool", "logs");
+            Directory.CreateDirectory(machineLoggingPath);
+            machineLoggingPath = Path.Combine(machineLoggingPath, "log-");
+            Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.Debug()
+            .WriteTo.File(
+                machineLoggingPath,
+                restrictedToMinimumLevel: LogEventLevel.Information,
+                rollingInterval: RollingInterval.Day,
+                retainedFileCountLimit: 7,
+                shared: true,
+                outputTemplate: "[{Level:u3} @ {Timestamp:HH:mm:ss}] {Message:lj}\r")
+            .WriteTo.Debug(outputTemplate: "[{Level:u3} @ {Timestamp:HH:mm:ss}] {Message:lj}{Newline}{Exception}\r")
+            .CreateLogger();
+        }
+
+        /// <summary>
+        /// a callback when the mainwindow is loaded
+        /// </summary>
+        /// <param name="sender">the window that fired the callback</param>
+        /// <param name="e">event args</param>
         private void OnWindowLoaded(object sender, RoutedEventArgs e)
         {
+            Log.Debug($"{prefix} Window Loaded");
             this.GenerateDeploymentWindow();
         }
 
         protected override void OnClosing(CancelEventArgs e)
         {
             base.OnClosing(e);
-            if (deploymentStatusWindow != null) { deploymentStatusWindow.Close(); }
+            try
+            {
+                if (deploymentStatusWindow != null) { deploymentStatusWindow.Close(); }
+            }
+            catch(InvalidOperationException ex) { Log.Fatal($"{prefix} InvalidOperationException: {ex}"); }
         }
 
         private void OnDeploymentItemSelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -68,68 +105,22 @@ namespace CrestronDeploymentTool
 
         private void OnDeploymentWizardClicked(object sender, RoutedEventArgs e)
         {
-            if (this.deploymentStatus.Running == false)
+            if (this.Deployment.Running == false)
             {
-                List<DeploymentWizardAction> selectedActions = DeploymentWizardActions.Options.Where(i => i.IsSelected).ToList();
-                bool cancel = false;
-
-                //if both of these are null, this is the first run
-                if (customPassword == null && customPassword == null) { (customUserName, customPassword, cancel) = DeploymentWizard.ConnectionDetails(this); }
-                //if this is not the first run, provide a quick confirmation to re-use the existing credentials
-                else 
-                {
-                    MessageBoxResult result = MessageBox.Show("Do you want to use the credentials you provided previously?", "Use Existing Credentials", MessageBoxButton.YesNo);
-                    if (result == MessageBoxResult.No) { (customUserName, customPassword, cancel) = DeploymentWizard.ConnectionDetails(this); }
-                }
-
-                //if the user cancels the operation, exit the wizard
-                if (cancel) { return; }
-
-                //determine if we should provide a re-selection dialog for each of the deployment actions (users may want to only deploy to certain devices
-                bool reselectTargetDevices = selectedActions.Count > 1;
-
-                //run through the wizard for each deployment action selected
-                selectedActions.ForEach(action =>
-                {
-                    bool canceled = false;
-
-                    switch (action.Name)
-                    {
-                        case (DeploymentWizardActions.SendConsoleCommands):
-                            canceled = DeploymentWizard.ConsoleCommands(reselectTargetDevices);
-                            Debug.WriteLine($"{prefix} Console Command Deployment {(canceled == true ? "Canceled" : "Ready")}");
-                            break;
-                        case (DeploymentWizardActions.SendConfigurationFiles):
-                            canceled = DeploymentWizard.ConfigurationFiles(reselectTargetDevices);
-                            Debug.WriteLine($"{prefix} Configuration File Deployment {(canceled == true ? "Canceled" : "Ready")}");
-                            break;
-                        case (DeploymentWizardActions.SendUserInterfaces):
-                            canceled = DeploymentWizard.UserInterfaces(reselectTargetDevices);
-                            Debug.WriteLine($"{prefix} User Interface Deployment {(canceled == true ? "Canceled" : "Ready")}");
-                            break;
-                        case (DeploymentWizardActions.SendProgramming):
-                            canceled = DeploymentWizard.Programming(reselectTargetDevices);
-                            Debug.WriteLine($"{prefix} Programming Deployment {(canceled == true ? "Canceled" : "Ready")}");
-                            break;
-                        case (DeploymentWizardActions.SendFirmware):
-                            canceled = DeploymentWizard.Firmware(reselectTargetDevices);
-                            Debug.WriteLine($"{prefix} Firmware Deployment {(canceled == true ? "Canceled" : "Ready")}");
-                            break;
-                    }
-                });
-
+                //run the main wizard
+                (customUserName, customPassword) = DeploymentWizard.ConfigureDeployment(customUserName, customPassword, this);
                 //show the deployment window to the user to allow them to begin the deployment or clear all actions if needed
                 this.ShowDeploymentWindow();
             }
             else { 
-                Debug.WriteLine($"{prefix} Deployment In Progress...Cannot Start Deployment Wizard [Click Ignored]");
+                Log.Debug($"{prefix} Deployment In Progress...Cannot Start Deployment Wizard [Click Ignored]");
                 this.ShowDeploymentWindow();
             }
         }
 
         private void GenerateDeploymentWindow()
         {
-            this.deploymentStatusWindow = new DeploymentStatusWindow(this, this.deploymentStatus, this.StartDeployment, this.StopDeploymemt);
+            this.deploymentStatusWindow = new DeploymentStatusWindow(this, this.Deployment, this.StartDeployment, this.StopDeploymemt);
             this.deploymentStatusWindow.Closing += (s, e) => { this.deploymentStatusWindow = null; };
         }
 
@@ -141,15 +132,15 @@ namespace CrestronDeploymentTool
 
         private async void StartDeployment()
         {
-            if (this.deploymentStatus.Running) { Debug.WriteLine($"{prefix} Deployment In Progress... [Click Ignored]"); }
+            if (this.Deployment.Running) { Log.Debug($"{prefix} Deployment In Progress... [Click Ignored]"); }
             else
             {
                 try
                 {
                     this.deploymentCancellationToken = new CancellationTokenSource();
-                    this.deploymentStatus.Running = true;
+                    this.Deployment.Running = true;
 
-                    Debug.WriteLine($"{prefix} Starting Task Thread For Deployment");
+                    Log.Information($"{prefix} Starting Task Thread For Deployment");
 
                     List<Task> tasks = DiscoveredDevices.SelectedTargetDevices.Select(d =>
                     {
@@ -157,24 +148,24 @@ namespace CrestronDeploymentTool
                         {
                             try
                             {
-                                Debug.WriteLine($"{prefix} Starting Task Thread For {d.Name} @ {d.IpAddress} Deployment Actions");
+                                Log.Information($"{prefix} Starting Task Thread For {d.Name} @ {d.IpAddress} Deployment Actions");
 
                                 if (customUserName != null && customPassword != null) { d.Deploy(customUserName, customPassword, deploymentCancellationToken.Token); }
-                                else { Debug.WriteLine($"{prefix} username and password not provided"); }
+                                else { Log.Error($"{prefix} username and password not provided"); }
                             }
-                            catch (OperationCanceledException ex) { Debug.WriteLine($"{prefix} Operation Canceled {ex.Message}"); }
+                            catch (OperationCanceledException ex) { Log.Information($"{prefix} Operation Canceled {ex.Message}"); }
 
                         }, deploymentCancellationToken.Token);
                     }).ToList();
 
                     await Task.WhenAll(tasks);
                 }
-                catch (OperationCanceledException ex) { Debug.WriteLine($"{prefix} Operation Canceled {ex.Message}"); }
-                catch (Exception ex) { Debug.WriteLine($"{prefix} Exception {ex.Message}"); }
+                catch (OperationCanceledException ex) { Log.Information($"{prefix} Operation Canceled {ex.Message}"); }
+                catch (Exception ex) { Log.Fatal($"{prefix} Exception {ex.Message}"); }
                 finally
                 {
-                    this.deploymentStatus.Running = false;
-                    Debug.WriteLine($"{prefix} Deployment Tasks Complete");
+                    this.Deployment.Running = false;
+                    Log.Information($"{prefix} Deployment Tasks Complete");
                 }
             }
         }
@@ -189,7 +180,7 @@ namespace CrestronDeploymentTool
             AddCrestronDeviceDialog dialog = new AddCrestronDeviceDialog(this);
             bool? result = dialog.ShowDialog();
 
-            if (result == true) { DiscoveredDevices.AddDevice(new CrestronDevice(dialog.DeviceName.Text, "", dialog.DeviceIP.Text)); }
+            if (result == true) { DiscoveredDevices.AddDevice(new CrestronDevice(dialog.DeviceName.Text, "", dialog.DeviceIP.Text), DiscoveredDevices.AvailableDiscoveredDevices); }
         }
 
         private void OnClearDiscoveredDevicesClicked(object sender, RoutedEventArgs e)

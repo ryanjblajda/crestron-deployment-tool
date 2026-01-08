@@ -5,8 +5,23 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:CrestronDeploymentTool.UserInterface"
         mc:Ignorable="d"
-        Title="ConfirmationDialog" Height="450" Width="450">
-    <Grid>
-        
+        Title="ConfirmationDialog"    
+        MaxWidth="600"
+        ResizeMode="CanMinimize"
+        SizeToContent="WidthAndHeight">
+    <Grid Background="#333333">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition/>
+            <ColumnDefinition/>
+            <ColumnDefinition/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition/>
+            <RowDefinition Height="2*"/>
+        </Grid.RowDefinitions>
+        <TextBlock x:Name="Message" TextAlignment="Center" Grid.Row="0" Grid.ColumnSpan="3" TextWrapping="Wrap" Margin="10" Padding="5" FontSize="22" Background="Transparent" Foreground="White" d:Text="A test message"></TextBlock>
+        <Button x:Name="ButtonLeft" Click="OnButtonPressed" MinHeight="50" MinWidth="75" Margin="5" Style="{StaticResource DefaultButtonStyle}" FontSize="22" Grid.Column="0" Grid.Row="1" d:Content="Yes"></Button>
+        <Button x:Name="ButtonCenter" Click="OnButtonPressed" MinHeight="50" MinWidth="75" Margin="5" Style="{StaticResource DefaultButtonStyle}" FontSize="22" Grid.Column="1" Grid.Row="1" d:Content="No"></Button>
+        <Button x:Name="ButtonRight" Click="OnButtonPressed" MinHeight="50" MinWidth="75" Margin="5" Style="{StaticResource DefaultButtonStyle}" FontSize="22" Grid.Column="2" Grid.Row="1" d:Content="Cancel"></Button>
     </Grid>
 </Window>

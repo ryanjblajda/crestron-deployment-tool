@@ -1,19 +1,15 @@
-﻿using CrestronDeploymentTool.Utilities;
-using Microsoft.Win32;
+﻿using CrestronDeploymentTool.Model.Deployment.ProvisioningState;
+using CrestronDeploymentTool.Utilities;
+
 using Renci.SshNet;
-using Renci.SshNet.Common;
-using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Net;
-using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
+using Serilog;
 
 namespace CrestronDeploymentTool.Model.TargetDevices.DeviceDeployment
 {
@@ -26,24 +22,38 @@ namespace CrestronDeploymentTool.Model.TargetDevices.DeviceDeployment
         public string Name { get; private set; }
         public string Description { get; private set; }
 
+        private string _response = String.Empty;
+        public string Response
+        {
+            get { return _response; }
+            internal set
+            {
+                if (value != _response)
+                {
+                    _response = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
         private string _message = string.Empty;
-        public string Message 
-        { 
+        public string Message
+        {
             get { return _message; }
-            internal set 
-            { 
-                if (value != _message) 
-                { 
+            internal set
+            {
+                if (value != _message)
+                {
                     _message = value;
 
                     OnPropertyChanged();
-                } 
-            } 
+                }
+            }
         }
 
         private DeviceDeploymentActionStatus _status;
-        public DeviceDeploymentActionStatus Status 
-        { 
+        public DeviceDeploymentActionStatus Status
+        {
             get { return _status; }
             internal set
             {
@@ -68,24 +78,67 @@ namespace CrestronDeploymentTool.Model.TargetDevices.DeviceDeployment
             Status = DeviceDeploymentActionStatus.NotStarted;
         }
 
+        /// <summary>
+        /// the property changed event handler
+        /// </summary>
+        /// <param name="propertyName">the property that changed</param>
         protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
+        /// <summary>
+        /// assigns the function that should be called when the deployment action needs to be ran
+        /// </summary>
+        /// <param name="action">the function</param>
         public void AssignAction(Func<CancellationToken, bool> action)
         {
             Action = action;
         }
 
+        /// <summary>
+        /// invokes the function provided to this action
+        /// </summary>
+        /// <param name="token">the cancellation token to cancel the action</param>
+        /// <returns>the result of the action</returns>
         public bool? Invoke(CancellationToken token)
         {
             return Action?.Invoke(token);
         }
 
-        private string CleanString(string data)
+        /// <summary>
+        /// cleans a string of unusable characters
+        /// </summary>
+        /// <param name="data">the string to clean</param>
+        /// <returns>the cleaned string</returns>
+        private static string CleanString(string? data)
         {
-            return Regex.Replace(data, @"[^\x20-\x7E]", "");
+            if (data != null) { return Regex.Replace(data, @"[^\x20-\x7E]", ""); }
+            else { return String.Empty; }
+        }
+
+        /// <summary>
+        /// updates the console response field with data incoming from the device
+        /// </summary>
+        /// <param name="line">the newest line of data</param>
+        /// <param name="device">the device that sent the update</param>
+        /// <param name="action">the action that called this</param>
+        private static void UpdateResponse(string? line, CrestronDevice device, DeviceDeploymentAction action)
+        {
+            if (line != null)
+            {
+                //replace the bs that the terminal gives us when its a new line
+                line = line.Replace($"{device.Model}>", String.Empty);
+                line = line.Replace($"{device.Model.ToLower()}>", String.Empty);
+                //if the line is now an empty string, ignore it
+                if (line != String.Empty)
+                {
+                    //append until we hit 255 characters
+                    if (action.Response.Length < 1024) { action.Response += $"\r" + line; }
+                    else { action.Response = line; }
+                    //Log.Debug($"{prefix} Command Response Line: {line}");
+                }
+            }
         }
 
         /// <summary>
@@ -104,27 +157,47 @@ namespace CrestronDeploymentTool.Model.TargetDevices.DeviceDeployment
 
                 if (device.TcpClient != null)
                 {
+                    if (device.TcpClient?.Connected == false) { device.TcpClient?.Connect(IPAddress.Parse(device.IpAddress), Constants.TelnetPort); }
+                    
+                    Log.Debug($"{prefix} Running Command: {command} on {device.Name} @ {device.IpAddress} via Telnet");
+                    
                     device.TcpClient?.GetStream().Write(Encoding.ASCII.GetBytes($"{command}\r"));
+                    
+                    action.Message = "Command Sent";
+                    action.Status = DeviceDeploymentActionStatus.WaitingForResponse;
 
                     if (device.TcpClient?.GetStream().CanRead == true)
                     {
-                        byte[] buf = new byte[1024];
                         bool endOfResponseFound = false;
+                        bool firstEndOfResponse = false;
 
-                        while (device.TcpClient?.Available != 0 && !endOfResponseFound)
+                        while (device.TcpClient?.Connected == true && !endOfResponseFound)
                         {
+                            byte[] buf = new byte[1024];
                             device.TcpClient?.GetStream().Read(buf, 0, device.TcpClient.Available);
                             string incoming = Encoding.ASCII.GetString(buf);
-                            action.Message = incoming;
-                                
-                            Debug.WriteLine($"{prefix} Incoming Telnet Data -> {action.CleanString(incoming)}");
+                            
+                            UpdateResponse(incoming, device, action);
 
-                            if (incoming.Contains(">")) { 
-                                endOfResponseFound = true;
-                                Debug.WriteLine($"{prefix} End of Response Found (Bytes Available: {device.TcpClient?.Available}), Disconnecting");
-                            }                            
+                            Log.Debug($"{prefix} Incoming Telnet Data -> {CleanString(incoming)}");
+
+                            if (incoming.Contains(">"))
+                            {
+                                if (firstEndOfResponse) {
+                                    endOfResponseFound = true;
+                                    Log.Debug($"{prefix} End of Response Found (Bytes Available: {device.TcpClient?.Available}), Disconnecting");
+                                }
+                                else {
+                                    firstEndOfResponse = true;
+                                    Log.Debug($"{prefix} First End of Response Found, Staying Connected...");
+                                }
+                            }
                         }
+
                         success = true;
+                        action.Status = DeviceDeploymentActionStatus.SendingCommandSuccess;
+                        
+                        if(device.TcpClient?.Connected == true) { device.TcpClient?.Close(); } 
                     }
                 }
             }
@@ -144,62 +217,37 @@ namespace CrestronDeploymentTool.Model.TargetDevices.DeviceDeployment
         private static bool SendCommandSsh(string command, DeviceDeploymentAction action, CrestronDevice device, CancellationToken cancel)
         {
             bool success = false;
-            
+
             if (device.SshClient != null)
             {
                 try
                 {
+                    action.Status = DeviceDeploymentActionStatus.SendingCommand;
                     if (command != String.Empty)
                     {
                         action.Status = DeviceDeploymentActionStatus.Waiting;
-                        Debug.WriteLine($"{prefix} Running Command: {command}");
-                        SshCommand? cmd = device.SshClient?.CreateCommand(command);
+                        Log.Debug($"{prefix} Running Command: {command} on {device.Name} @ {device.IpAddress} via SSH");
+                        SshCommand? cmd = device.SshClient.RunCommand(command + "\r");
+                        action.Message = "Command Sent";
 
                         if (cmd != null)
                         {
-                            IAsyncResult? asyncResult = cmd?.BeginExecute();
-                            action.Status = DeviceDeploymentActionStatus.SendingCommand;
-                            if (asyncResult != null)
-                            {
-                                action.Status = DeviceDeploymentActionStatus.WaitingForResponse;
+                            action.Status = DeviceDeploymentActionStatus.WaitingForResponse;
 
-                                if (cmd != null)
-                                {
-                                    StreamReader output = new StreamReader(cmd.OutputStream);
+                            Log.Debug($"{prefix} {device.Name} @ {device.IpAddress} SSH Command Result -> {CleanString(cmd?.Result)}{(cmd?.Error == null ? "" : " // " + CleanString(cmd?.Error))}{(cmd?.ExitStatus == null ? "" : " // " + cmd?.ExitStatus)}");
 
-                                    while (!asyncResult.IsCompleted)
-                                    {
-                                        while (!output.EndOfStream)
-                                        {
-                                            string? line = output.ReadLine();
-                                            action.Status = DeviceDeploymentActionStatus.InProgress;
+                            if (cmd?.Result != null) { UpdateResponse(cmd.Result, device, action); }
+                            
+                            if (cmd?.Error != null) { UpdateResponse(cmd?.Error, device, action); }
 
-                                            if (line != null)
-                                            {
-                                                //replace the bs that the terminal gives us when its a new line
-                                                line = line.Replace($"{device.Model}>", String.Empty);
-                                                //if the line is now an empty string, ignore it
-                                                if (line != String.Empty)
-                                                {
-                                                    //append until we hit 255 characters
-                                                    if (action.Message.Length < 255) { action.Message += $"\r" + line; }
-                                                    else { action.Message = line; }
-                                                    Debug.WriteLine($"{prefix} Command Response Line: {line}");
-                                                }
-                                            }
-                                            if (Cancellation.CheckTokenStatus(cancel, action)) return false;
-                                        }
-                                        if (Cancellation.CheckTokenStatus(cancel, action)) return false;
-                                    }
-                                }
-
-                                cmd?.EndExecute(asyncResult);
+                            if (cmd?.ExitStatus == 0 || cmd?.ExitStatus == null) 
+                            { 
+                                action.Status = DeviceDeploymentActionStatus.SendingCommandSuccess;
+                                success = true;
                             }
-
-                            action.Status = DeviceDeploymentActionStatus.SendingCommandSuccess;
-                            success = true;
+                            else { action.Status = DeviceDeploymentActionStatus.SendingCommandFailed; }
                         }
-                        else { Debug.WriteLine($"{prefix} No Command Provided"); }
+                        else { Log.Debug($"{prefix} No Command Provided"); }
 
                         device.SshClient?.Disconnect();
                     }
@@ -209,9 +257,14 @@ namespace CrestronDeploymentTool.Model.TargetDevices.DeviceDeployment
                     success = false;
                     action.Status = DeviceDeploymentActionStatus.SendingCommandFailed;
                     action.Message += $"\r{ex.Message}";
+                    Log.Fatal($"{prefix} {ex.Message}");
                 }
             }
-            else { action.Status = DeviceDeploymentActionStatus.CompleteFailure; action.Message = "SSH Client Null!"; }
+            else { 
+                action.Status = DeviceDeploymentActionStatus.CompleteFailure; 
+                action.Message = "SSH Client Null!";
+                Log.Warning($"{prefix} {action.Message}");
+            }
 
             return success;
         }
@@ -255,7 +308,7 @@ namespace CrestronDeploymentTool.Model.TargetDevices.DeviceDeployment
         /// <param name="action">a reference to the action that called the function</param>
         /// <param name="cancel">a cancellation token to listen to so that this action can be cancelled if needed</param>
         /// <returns>a bool representing if the file was sent to the device, and the command sent (if provided) </returns>
-        public static bool SendFileViaFTP(MemoryStream? stream, string remotefilepath, string postUploadCommand, CrestronDevice device, DeviceDeploymentAction action, CancellationToken cancel) 
+        public static bool SendFileViaFTP(MemoryStream? stream, string remotefilepath, string postUploadCommand, CrestronDevice device, DeviceDeploymentAction action, CancellationToken cancel)
         {
             if (Cancellation.CheckTokenStatus(cancel, action)) return false;
 
@@ -268,7 +321,7 @@ namespace CrestronDeploymentTool.Model.TargetDevices.DeviceDeployment
             {
                 device.ConnectConsole(action);
 
-                Debug.WriteLine($"{prefix} Attempting to Upload MemoryStream to {remotefilepath} on {device.Name} @ {device.IpAddress}");
+                Log.Information($"{prefix} Attempting to Upload MemoryStream to {remotefilepath} on {device.Name} @ {device.IpAddress}");
 
                 try
                 {
@@ -285,13 +338,13 @@ namespace CrestronDeploymentTool.Model.TargetDevices.DeviceDeployment
                                 action.Status = DeviceDeploymentActionStatus.SendingFile;
                                 double percent = uploadProgress * 100 / (ulong)stream.Length;
                                 action.Message = $"Upload Progress: {percent}% [{uploadProgress} bytes]";
-                                //Debug.WriteLine($"{prefix} {action.Message}");
+                                //Log.Debug($"{prefix} {action.Message}");
                             }
                         });
 
                         if (Cancellation.CheckTokenStatus(cancel, action)) return false;
 
-                        Debug.WriteLine($"{prefix} Sent File via SFTP");
+                        Log.Information($"{prefix} Sent File via SFTP");
 
                         success = true;
                         action.Status = DeviceDeploymentActionStatus.SendingFileSuccess;
@@ -307,7 +360,7 @@ namespace CrestronDeploymentTool.Model.TargetDevices.DeviceDeployment
                 {
                     action.Status = DeviceDeploymentActionStatus.SendingFileFailed;
                     action.Message = $"Failed to upload file via SFTP: {ex.Message}";
-                    Debug.WriteLine($"{prefix} Failed to upload file via SFTP: {ex.Message}");
+                    Log.Fatal($"{prefix} Failed to upload file via SFTP: {ex.Message}");
                 }
             }
 
@@ -333,41 +386,199 @@ namespace CrestronDeploymentTool.Model.TargetDevices.DeviceDeployment
 
             result = device.ConnectSFTP(action);
 
-            if (result == ConnectionResult.UseSsh) { 
+            if (result == ConnectionResult.UseSsh)
+            {
                 device.ConnectConsole(action);
-                Debug.WriteLine($"{prefix} Opening Local File {localfilepath}");
-                FileStream fileStream = File.OpenRead(localfilepath);
-                Debug.WriteLine($"{prefix} Attempting to Upload {localfilepath} to {remotefilepath} on {device.Name} @ {device.IpAddress}");
 
                 try
                 {
-                    device.SftpClient?.UploadFile(fileStream, remotefilepath, uploadProgress =>
+                    Task.Run(() =>
                     {
-                        if (Cancellation.CheckTokenStatus(cancel, action)) device.SftpClient.Disconnect();
-                        else
-                        {
-                            action.Status = DeviceDeploymentActionStatus.SendingFile;
-                            double percent = uploadProgress * 100 / (ulong)fileStream.Length;
-                            action.Message = $"Upload Progress: {percent}% [{uploadProgress} bytes]";
-                            //Debug.WriteLine($"{prefix} {action.Message}");
+                        Log.Debug($"{prefix} Opening Local File {localfilepath}");
+                        FileStream fileStream = File.OpenRead(localfilepath);
+                        Log.Information($"{prefix} Attempting to Upload {localfilepath} to {remotefilepath} on {device.Name} @ {device.IpAddress}");
+
+                        try {
+                            device.SftpClient?.UploadFile(fileStream, remotefilepath, uploadProgress =>
+                            {
+                                if (device != null)
+                                {
+                                    if (Cancellation.CheckTokenStatus(cancel, action))
+                                    {
+                                        Log.Warning($"{prefix} Upload Canceled");
+                                        if (device.SftpClient != null) { device.SftpClient?.Disconnect(); }
+                                    }
+                                    else
+                                    {
+                                        try
+                                        {
+                                            action.Status = DeviceDeploymentActionStatus.SendingFile;
+                                            double percent = uploadProgress * 100 / (ulong)fileStream.Length;
+                                            action.Message = $"Upload Progress: {percent}% [{uploadProgress} bytes]";
+                                            //Log.Debug($"{prefix} {action.Message}");
+                                        }
+                                        catch (Exception ex) { Log.Fatal($"{prefix} Exception @ Upload Progress Callback: {ex.Message}"); }
+                                    }
+                                }
+
+                            });
+
+                            Log.Information($"{prefix} Sent File via SFTP");
+
+                            if (Cancellation.CheckTokenStatus(cancel, action))
+                            {
+                                success = true;
+                                action.Status = DeviceDeploymentActionStatus.SendingFileSuccess;
+
+                                device.SftpClient?.Disconnect();
+
+                                SendCommandSsh(postUploadCommand, action, device, cancel);
+                            }
                         }
-                    });
-
-                    if (Cancellation.CheckTokenStatus(cancel, action)) return false;
-
-                    Debug.WriteLine($"{prefix} Sent File via SFTP");
-                    
-                    success = true;
-                    action.Status = DeviceDeploymentActionStatus.SendingFileSuccess;
-
-                    device.SftpClient?.Disconnect();
-
-                    SendCommandSsh(postUploadCommand, action, device, cancel);
+                        catch (Exception ex) { Log.Fatal($"{prefix} Exception Uploading File: {ex.Message}"); }
+                        finally
+                        {
+                            fileStream.Close();
+                            fileStream.Dispose();
+                        }
+                    }).Wait(cancel);
                 }
-                catch (Exception ex) {
-                    action.Status = DeviceDeploymentActionStatus.SendingFileFailed; 
+                catch (Exception ex)
+                {
+                    action.Status = DeviceDeploymentActionStatus.SendingFileFailed;
                     action.Message = $"Failed to upload file via SFTP: {ex.Message}";
-                    Debug.WriteLine($"{prefix} Failed to upload file via SFTP: {ex.Message}");
+                    Log.Fatal($"{prefix} Failed to upload file via SFTP: {ex.Message}");
+                }
+            }
+
+            return success;
+        }
+
+        /// <summary>
+        /// handles the incoming data from a device that needs to be provisioned, and sends out the appropriate details
+        /// </summary>
+        /// <param name="data"></param>
+        /// <param name="state"></param>
+        /// <param name="device"></param>
+        /// <param name="action"></param>
+        /// <param name="token"></param>
+        private static ProvisioningStatus HandleProvisioningResponse(string? data, string user, string pass, ref int attempt, ShellStream? stream, ProvisioningStatus state, CrestronDevice device, DeviceDeploymentAction action, CancellationToken token)
+        {
+            if (stream != null)
+            {
+                if (data != null)
+                {
+                    if (data != String.Empty)
+                    {
+                        Log.Debug($"{prefix} Received: {data}");
+
+                        if (state == ProvisioningStatus.WaitingUsername && Regex.IsMatch(data, @"(?i)username\s*:\s*$"))
+                        {
+                            Log.Information($"Attempting to create admin account with username: {user} on device -> {device.Name} @ {device.IpAddress}");
+                            stream?.Write($"{user}\r");
+                            state = ProvisioningStatus.WaitingPassword;
+                            attempt++;
+                        }
+                        
+                        if (state == ProvisioningStatus.WaitingPassword && Regex.IsMatch(data, @"(?i)password\s*:\s*$"))
+                        {
+                            Log.Information($"Attempting to set admin account password: {pass} for account named: {user} on device -> {device.Name} @ {device.IpAddress}");
+                            stream?.Write($"{pass}\r");
+                            state = ProvisioningStatus.WaitingVerification;
+                            attempt++;
+                        }
+                        
+                        if (state == ProvisioningStatus.WaitingVerification && Regex.IsMatch(data, @"(?i)verify\s+password\s*:\s*$"))
+                        {
+                            Log.Information($"Attempting to verify admin account password: {pass} for account named: {user} on device -> {device.Name} @ {device.IpAddress}");
+                            stream?.Write($"{pass}\r");
+                            state = ProvisioningStatus.Complete;
+                            attempt++;
+                        }
+                        
+                        if (state == ProvisioningStatus.Complete && Regex.IsMatch(data, @"(?i)successfully\s+created."))
+                        {
+                            Log.Information($"Administrator account named: {user} with password: {pass} created on device -> {device.Name} @ {device.IpAddress}");
+                            state = ProvisioningStatus.Success;
+                        }
+                        
+                        if (data.Contains("error"))
+                        {
+                            action.Message += data;
+                            state = ProvisioningStatus.Failure;
+                        }
+                    }
+                }
+            }
+
+            return state;
+        }
+
+        /// <summary>
+        /// provisions the a new crestron device, assigning the administrator account
+        /// </summary>
+        /// <param name="user">the default username</param>
+        /// <param name="pass">the default password</param>
+        /// <param name="device">the crestron device</param>
+        /// <param name="action">the deployment action that called this action</param>
+        /// <param name="token">the cancellation token to allow the action to be stopped</param>
+        /// <returns>the success response</returns>
+        public static bool ProvisionNewDevice(string user, string pass, CrestronDevice device, DeviceDeploymentAction action, CancellationToken token)
+        {
+            bool success = false;
+            int retries = 4;
+
+            ConnectionResult result = device.ConnectConsole(action);
+            if (device.SshClient != null)
+            {
+                if (result == ConnectionResult.UseTelnet) { 
+                    action.Message = "Device does not support SSH, cannot provision device with default credentials";
+                    Log.Warning($"{prefix} {action.Message}");
+                }
+                else if (result == ConnectionResult.ConnectionFailure) { 
+                    action.Message = "Failed to connect to device, cannot provision device with default credentials";
+                    Log.Warning($"{prefix} {action.Message}");
+                }
+                else
+                {
+                    ProvisioningStatus state = ProvisioningStatus.WaitingUsername;
+                    int attempt = 0;
+
+                    if (device.SshClient?.IsConnected != true) { device.SshClient?.Connect(); }
+
+                    ShellStream? stream = device.SshClient?.CreateShellStreamNoTerminal(1024);
+                    stream?.Write("\r");
+                    string? data = String.Empty;
+
+                    while (stream?.CanRead == true && attempt < retries && state != ProvisioningStatus.Failure && state != ProvisioningStatus.Success)
+                    {
+                        if (token.IsCancellationRequested) { break; }
+
+                        string? incoming = stream?.Read();
+                        
+                        if (incoming != null) { if (incoming + data != data) { UpdateResponse(data, device, action); } }
+
+                        data += incoming;
+                        data = data?.ToLower();
+
+                        Log.Debug($"{prefix} {data}");
+
+                        ProvisioningStatus update = HandleProvisioningResponse(data, user, pass, ref attempt, stream, state, device, action, token);
+                        
+                        if (update != state)
+                        {
+                            Log.Debug($"{prefix} Attempt: {attempt} -> {update}");
+                            attempt = 0;
+                            action.Message = $"{update}";
+                            data = String.Empty;
+                            state = update;
+                        }
+
+                        if (update == ProvisioningStatus.Success) { success = true; }
+                    }
+
+                    Log.Information($"{prefix} Disconnecting from {device.Name} @ {device.IpAddress}");
+                    device.SshClient?.Disconnect();
                 }
             }
 

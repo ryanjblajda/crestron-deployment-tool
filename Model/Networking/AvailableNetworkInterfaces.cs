@@ -1,4 +1,5 @@
-﻿using System;
+﻿using CrestronDeploymentTool.Discovery;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -7,6 +8,8 @@ using System.Linq;
 using System.Net.NetworkInformation;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows;
+using Serilog;
 
 namespace CrestronDeploymentTool.Model.Networking
 {
@@ -20,7 +23,20 @@ namespace CrestronDeploymentTool.Model.Networking
 
         static AvailableNetworkInterfaces()
         {
+            NetworkChange.NetworkAddressChanged += OnNetworkAddressChanged;
+            NetworkChange.NetworkAvailabilityChanged += OnNetworkAvailabilityChanged;
             if (DesignerProperties.GetIsInDesignMode(new System.Windows.DependencyObject())) { LoadDebugElements(); }
+        }
+        private static void OnNetworkAvailabilityChanged(object? sender, NetworkAvailabilityEventArgs e)
+        {
+            if (CrestronDeviceDiscovery.CancellationToken != null) CrestronDeviceDiscovery.CancellationToken.Cancel();
+            GetAvailableNetworkInterfaces();
+        }
+
+        private static void OnNetworkAddressChanged(object? sender, EventArgs e)
+        {
+            if (CrestronDeviceDiscovery.CancellationToken != null) CrestronDeviceDiscovery.CancellationToken.Cancel();
+            GetAvailableNetworkInterfaces();            
         }
 
         /// <summary>
@@ -28,13 +44,15 @@ namespace CrestronDeploymentTool.Model.Networking
         /// </summary>
         public static void GetAvailableNetworkInterfaces()
         {
+            Application.Current.Dispatcher.Invoke(() => { Interfaces.Clear(); });
+
             NetworkInterface[] availableNICs = NetworkInterface.GetAllNetworkInterfaces();
 
             foreach (NetworkInterface nic in availableNICs)
             {
-                Debug.WriteLine($"{prefix} {nic.Name} -- Supports IPV4?: {nic.Supports(NetworkInterfaceComponent.IPv4)}");
+                Log.Debug($"{prefix} {nic.Name} -- Supports IPV4?: {nic.Supports(NetworkInterfaceComponent.IPv4)}");
                 List<string> addresses = nic.GetIPProperties().UnicastAddresses.Where(ip => ip.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork).Select(ip => ip.Address.ToString()).ToList();
-                if (nic.Supports(NetworkInterfaceComponent.IPv4) && addresses.Count > 0) { AddInterface(new AvailableNetworkInterface(false, nic.Name, addresses.First(), nic)); }
+                if (nic.Supports(NetworkInterfaceComponent.IPv4) && addresses.Count > 0 && !nic.Name.ToLower().Contains("loopback") && !nic.Name.ToLower().Contains("bluetooth")) { AddInterface(new AvailableNetworkInterface(false, nic.Name, addresses.First(), nic)); }
             }
         }
 
@@ -58,7 +76,7 @@ namespace CrestronDeploymentTool.Model.Networking
             if (!Interfaces.ToList().Any(i => i.Name == intf.Name))
             {
                 result = true;
-                Interfaces.Add(intf);
+                Application.Current.Dispatcher.Invoke(() => { Interfaces.Add(intf); });
             }
 
             return result;
