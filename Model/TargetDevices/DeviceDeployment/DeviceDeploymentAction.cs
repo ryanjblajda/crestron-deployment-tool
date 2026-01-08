@@ -168,7 +168,7 @@ namespace CrestronDeploymentTool.Model.TargetDevices.DeviceDeployment
                             
                             UpdateResponse(incoming, device, action);
 
-                            Log.Debug($"{prefix} Incoming Telnet Data -> {CleanString(incoming)}");
+                            Log.Debug($"{prefix} Incoming Telnet Data -> {Utilities.TextHelpers.CleanString(incoming)}");
 
                             if (incoming.Contains(">"))
                             {
