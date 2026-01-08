@@ -94,6 +94,12 @@ namespace CrestronDeploymentTool.Model.TargetDevices
                 }
             });
 
+            Log.Information($"{prefix} Device: {this.Name} @ {this.IpAddress} | Disconnecting All Clients");
+
+            if (this.SftpClient.IsConnected) { this.SftpClient?.Disconnect(); }
+            if (this.SshClient?.IsConnected == true) { this.SshClient?.Disconnect(); }
+            if (this.TcpClient?.Connected == true) { this.TcpClient?.Close(); }
+
             Log.Information($"{prefix} Device: {this.Name} @ {this.IpAddress} | Deployment Complete");
         }
 
