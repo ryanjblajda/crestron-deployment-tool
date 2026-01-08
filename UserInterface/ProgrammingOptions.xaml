@@ -23,7 +23,7 @@
             <RowDefinition Height="*"></RowDefinition>
             <RowDefinition Height="*"></RowDefinition>
         </Grid.RowDefinitions>
-        <TextBlock x:Name="Message" FontSize="16" TextWrapping="Wrap" TextAlignment="Center" Foreground="White" Grid.ColumnSpan="2" Grid.RowSpan="2"></TextBlock>
+        <TextBlock Padding="15" x:Name="Message" FontSize="16" TextWrapping="Wrap" TextAlignment="Center" Foreground="White" Grid.ColumnSpan="3" Grid.RowSpan="2"></TextBlock>
         <TextBlock Margin="5" FontSize="22" TextAlignment="Left" HorizontalAlignment="Stretch" VerticalAlignment="Center" Foreground="WhiteSmoke" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2">
             Program Slot
         </TextBlock>
