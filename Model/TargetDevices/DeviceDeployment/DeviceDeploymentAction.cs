@@ -196,8 +196,6 @@ namespace CrestronDeploymentTool.Model.TargetDevices.DeviceDeployment
 
                         success = true;
                         action.Status = DeviceDeploymentActionStatus.SendingCommandSuccess;
-                        
-                        if(device.TcpClient?.Connected == true) { device.TcpClient?.Close(); } 
                     }
                 }
             }
@@ -348,8 +346,6 @@ namespace CrestronDeploymentTool.Model.TargetDevices.DeviceDeployment
 
                         if (Cancellation.CheckTokenStatus(cancel, action)) return false;
 
-                        Log.Information($"{prefix} Sent File via SFTP");
-
                         success = true;
                         action.Status = DeviceDeploymentActionStatus.SendingFileSuccess;
                         Log.Information($"{prefix} Sent File {remotefilepath} via SFTP");
@@ -436,7 +432,6 @@ namespace CrestronDeploymentTool.Model.TargetDevices.DeviceDeployment
 
                                 SendCommandSsh(postUploadCommand, action, device, cancel);
                             }
-                        }
                         catch (Exception ex) { Log.Fatal($"{prefix} Exception Uploading File: {ex.Message}"); }
                         finally
                         {
@@ -580,7 +575,6 @@ namespace CrestronDeploymentTool.Model.TargetDevices.DeviceDeployment
                     }
 
                     Log.Information($"{prefix} Disconnecting from {device.Name} @ {device.IpAddress}");
-                    device.SshClient?.Disconnect();
                 }
             }
 
