@@ -183,7 +183,7 @@ namespace CrestronDeploymentTool
             AddCrestronDeviceDialog dialog = new AddCrestronDeviceDialog(this);
             bool? result = dialog.ShowDialog();
 
-            if (result == true) { DiscoveredDevices.AddDevice(new CrestronDevice(dialog.DeviceName.Text, "", dialog.DeviceIP.Text), DiscoveredDevices.AvailableDiscoveredDevices); }
+            if (result == true) { DiscoveredDevices.AddDevice(new CrestronDevice(dialog.DeviceName.Text, "", "", "", dialog.DeviceIP.Text), DiscoveredDevices.AvailableDiscoveredDevices); }
         }
 
         private void OnClearDiscoveredDevicesClicked(object sender, RoutedEventArgs e)
