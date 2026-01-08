@@ -428,10 +428,8 @@ namespace CrestronDeploymentTool.Model.TargetDevices.DeviceDeployment
 
                             });
 
-                            Log.Information($"{prefix} Sent File via SFTP");
+                            if (Cancellation.CheckTokenStatus(cancel, action)) { return; }
 
-                            if (Cancellation.CheckTokenStatus(cancel, action))
-                            {
                                 success = true;
                                 action.Status = DeviceDeploymentActionStatus.SendingFileSuccess;
                             Log.Information($"{prefix} Sent File {remotefilepath} via SFTP");
