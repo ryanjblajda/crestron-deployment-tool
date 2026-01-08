@@ -83,8 +83,14 @@ namespace CrestronDeploymentTool.Model.TargetDevices
 
             if (device != null)
             {
-                if (device.IsSelected) { AddDevice(device, SelectedTargetDevices); }
-                else { SelectedTargetDevices.Remove(device); }
+                if (device.IsSelected) { 
+                    AddDevice(device, SelectedTargetDevices);
+                    Log.Debug($"Adding {device.Name} @ {device.IpAddress} [{device.Serial}] from Selected Target Device List");
+                }
+                else { 
+                    SelectedTargetDevices.Remove(device);
+                    Log.Debug($"Removing {device.Name} @ {device.IpAddress} [{device.Serial}] from Selected Target Device List");
+                }
             }
         }
 
@@ -94,13 +100,11 @@ namespace CrestronDeploymentTool.Model.TargetDevices
         /// <param name="device">the new device</param>
         public static void AddDevice(CrestronDevice device, ObservableCollection<CrestronDevice> targetList)
         {
-            if (!targetList.Any(d => d.IpAddress == device.IpAddress || d.Name == device.Name))
+            if (!targetList.Any(d => (d.Serial == device.Serial && device.Serial != null) || (d.IpAddress == device.IpAddress && device.IpAddress != null) || d.Name == device.Name && device.Name != null))
                 {
-                lock (targetList)
-                {
-                    targetList.Add(device);
-                }
+                lock (targetList) { targetList.Add(device); }
             }
+            else { Log.Debug($"Not adding {device.Name} @ {device.IpAddress} [{device.Serial}]"); }
         }
     }
 }
