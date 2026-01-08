@@ -344,7 +344,7 @@ namespace CrestronDeploymentTool.Model.TargetDevices.DeviceDeployment
                             }
                         });
 
-                        if (Cancellation.CheckTokenStatus(cancel, action)) return false;
+                        if (Cancellation.CheckTokenStatus(cancel, action)) { return false; };
 
                         success = true;
                         action.Status = DeviceDeploymentActionStatus.SendingFileSuccess;
