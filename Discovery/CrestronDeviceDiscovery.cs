@@ -130,11 +130,11 @@ namespace CrestronDeploymentTool.Discovery
         {
             if (bytes.Length > 0)
             {
-                //Debug.WriteLine("Valid Response Length");
+                //Log.Debug("Valid Response Length");
 
                 if (bytes.Take(discoveryResponse.Length).SequenceEqual(discoveryResponse))
                 {
-                    //Debug.WriteLine("Valid Discovery Header Found");
+                    //Log.Debug("Valid Discovery Header Found");
 
                     string data = Encoding.ASCII.GetString(bytes);
 
@@ -152,8 +152,8 @@ namespace CrestronDeploymentTool.Discovery
                                 if (!DiscoveredDevices.AvailableDiscoveredDevices.ToList().Any(d => d.IpAddress == ipaddr)) {
                                     //reset for another 8 seconds
                                     timer.Change(discoveryAdditionalTime, Timeout.Infinite);
-                                    Debug.WriteLine($"{prefix} Device Found, Discovery Time Extended by {discoveryAdditionalTime / 1000}s");
-                                    DiscoveredDevices.AddDevice(new CrestronDevice(name, description, ipaddr));
+                                    Log.Debug($"{prefix} Device Found, Discovery Time Extended by {discoveryAdditionalTime / 1000}s");
+                                    DiscoveredDevices.AddDevice(new CrestronDevice(name, description, ipaddr), DiscoveredDevices.AvailableDiscoveredDevices);
                                 }
                             }
                         });
@@ -168,12 +168,12 @@ namespace CrestronDeploymentTool.Discovery
         /// <param name="userobj">the cancellation token, as a generic object</param>
         private static void OnTimerExpired(object? userobj)
         {
-            //Debug.WriteLine(userobj?.GetType());
+            //Log.Debug(userobj?.GetType());
             if (userobj?.GetType() == typeof(CancellationTokenSource)) {
-                Debug.WriteLine($"{prefix} User Object Is CancellationTokenSource");
+                Log.Debug($"{prefix} User Object Is CancellationTokenSource");
                 CancellationTokenSource token = (CancellationTokenSource)userobj;
                 token.Cancel();
-                Debug.WriteLine($"{prefix} Timer Expired...Cancelling Token");
+                Log.Debug($"{prefix} Timer Expired...Cancelling Token");
             }
 
            
@@ -191,16 +191,16 @@ namespace CrestronDeploymentTool.Discovery
 
             if (token != null)
             {
-                Debug.WriteLine($"{prefix} Starting Listen @ {client.Client.LocalEndPoint}");
+                Log.Debug($"{prefix} Starting Listen @ {client.Client.LocalEndPoint}");
 
                 while (!token.IsCancellationRequested)
                 {
                     UdpReceiveResult rx = await client.ReceiveAsync();
-                    Debug.WriteLine($"{prefix} {rx.RemoteEndPoint.Address.ToString()}:{rx.RemoteEndPoint.Port} => Sent {rx.Buffer.Length} Bytes");
+                    Log.Debug($"{prefix} {rx.RemoteEndPoint.Address.ToString()}:{rx.RemoteEndPoint.Port} => Sent {rx.Buffer.Length} Bytes");
                     HandleIncomingDeviceResponse(rx.Buffer, rx.RemoteEndPoint.Address.ToString().ToLowerInvariant(), timer);
                 }
 
-                Debug.WriteLine($"{prefix} Stopping Listen @ {client.Client.LocalEndPoint}");
+                Log.Debug($"{prefix} Stopping Listen @ {client.Client.LocalEndPoint}");
             }
         }
     }
