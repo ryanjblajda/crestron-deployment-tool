@@ -164,6 +164,7 @@ namespace CrestronDeploymentTool.Model.TargetDevices
             {
                 action.Status = DeviceDeploymentActionStatus.CompleteFailure;
                 action.Message = $"SSH Client for Device is null!";
+                Log.Fatal($"{prefix} Device: {this.Name} @ {this.IpAddress} | SSH Client Null!");
             }
 
             return result;
