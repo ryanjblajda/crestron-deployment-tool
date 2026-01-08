@@ -49,11 +49,11 @@ namespace CrestronDeploymentTool.Discovery
                 
                 IsDiscoveryActive = true;
 
-                CancellationTokenSource token = new CancellationTokenSource();
+                CancellationToken = new CancellationTokenSource();
 
                 networkInterfaces.ForEach(async i =>
                 {
-                    await DiscoverDevicesViaInterface(i.Interface, token);
+                    await DiscoverDevicesViaInterface(i.Interface, CancellationToken);
                 });
 
                 IsDiscoveryActive = false;
