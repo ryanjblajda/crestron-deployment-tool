@@ -251,9 +251,6 @@ namespace CrestronDeploymentTool.Model.TargetDevices.DeviceDeployment
                                 Log.Information($"{prefix} Command {command} Failure sending to {device.Name} @ {device.IpAddress}");
                                 action.Status = DeviceDeploymentActionStatus.SendingCommandFailed; 
                         }
-                        else { Log.Debug($"{prefix} No Command Provided"); }
-
-                        device.SshClient?.Disconnect();
                     }
                 }
                 catch (Exception ex)
