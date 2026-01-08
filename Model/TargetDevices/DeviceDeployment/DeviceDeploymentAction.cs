@@ -222,7 +222,7 @@ namespace CrestronDeploymentTool.Model.TargetDevices.DeviceDeployment
                         {
                             action.Status = DeviceDeploymentActionStatus.WaitingForResponse;
 
-                            Log.Debug($"{prefix} {device.Name} @ {device.IpAddress} SSH Command Result: {CleanString(cmd?.Result)} {(cmd?.Error == String.Empty ? "" : " // Error:" + cmd?.Error)} {(cmd?.ExitStatus == null ? "" : " // Exit Status:" + cmd?.ExitStatus)}");
+                            Log.Debug($"{prefix} {device.Name} @ {device.IpAddress} SSH Command Result: {Utilities.TextHelpers.CleanString(cmd?.Result)} {(cmd?.Error == String.Empty ? "" : " // Error:" + cmd?.Error)} {(cmd?.ExitStatus == null ? "" : " // Exit Status:" + cmd?.ExitStatus)}");
 
                             if (cmd?.Result != null) { UpdateResponse(cmd.Result, device, action); }
 
