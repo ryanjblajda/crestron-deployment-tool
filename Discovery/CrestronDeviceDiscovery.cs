@@ -99,7 +99,7 @@ namespace CrestronDeploymentTool.Discovery
                             UdpClient client = new UdpClient(local);
                         client.EnableBroadcast = true;
                         //listen for responses in a separate thread
-                        _ = Task.Run(async() => { await Listen(client, cancellationToken); });
+                            _ = Task.Run(async () => { await Listen(client, cancellationToken); });
                         
                         byte[] discover = GenerateDiscoveryPacket();
                         
