@@ -1,4 +1,4 @@
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
@@ -53,7 +53,7 @@ namespace CrestronDeploymentTool.Model.TargetDevices
         /// </summary>
         private static void LoadDebugElements()
         {
-                }
+        }
 
         /// <summary>
         /// a callback for when the amount of discovered devices changes
@@ -101,7 +101,7 @@ namespace CrestronDeploymentTool.Model.TargetDevices
         public static void AddDevice(CrestronDevice device, ObservableCollection<CrestronDevice> targetList)
         {
             if (!targetList.Any(d => (d.Serial == device.Serial && device.Serial != null) || (d.IpAddress == device.IpAddress && device.IpAddress != null) || d.Name == device.Name && device.Name != null))
-                {
+            {
                 lock (targetList) { targetList.Add(device); }
             }
             else { Log.Debug($"Not adding {device.Name} @ {device.IpAddress} [{device.Serial}]"); }
