@@ -1,19 +1,14 @@
 ﻿using CrestronDeploymentTool.Model.Networking;
 using CrestronDeploymentTool.Model.TargetDevices;
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
+using CrestronDeploymentTool.UserInterface;
 using System.Diagnostics;
-using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Documents;
+using Serilog;
 
 namespace CrestronDeploymentTool.Discovery
 {
