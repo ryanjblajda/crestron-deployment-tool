@@ -252,6 +252,9 @@ namespace CrestronDeploymentTool.Model.TargetDevices.DeviceDeployment
                                 action.Status = DeviceDeploymentActionStatus.SendingCommandFailed; 
                         }
                     }
+                        else { Log.Warning($"{prefix} Command is null!"); }
+                }
+                    else { Log.Debug($"{prefix} Command is empty string!!"); }
                 }
                 catch (Exception ex)
                 {
@@ -349,13 +352,14 @@ namespace CrestronDeploymentTool.Model.TargetDevices.DeviceDeployment
 
                         success = true;
                         action.Status = DeviceDeploymentActionStatus.SendingFileSuccess;
+                        Log.Information($"{prefix} Sent File {remotefilepath} via SFTP");
 
                     }
-                    else { return false; }
-
-                    device.SftpClient?.Disconnect();
-
-                    SendCommandSsh(postUploadCommand, action, device, cancel);
+                    else
+                    {
+                        Log.Error($"{prefix} MemoryStream for {remotefilepath} is null!! Unable to upload to {device.Name} @ {device.IpAddress}");
+                        return false;
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -430,8 +434,7 @@ namespace CrestronDeploymentTool.Model.TargetDevices.DeviceDeployment
                             {
                                 success = true;
                                 action.Status = DeviceDeploymentActionStatus.SendingFileSuccess;
-
-                                device.SftpClient?.Disconnect();
+                            Log.Information($"{prefix} Sent File {remotefilepath} via SFTP");
 
                                 SendCommandSsh(postUploadCommand, action, device, cancel);
                             }
