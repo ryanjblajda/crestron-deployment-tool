@@ -135,6 +135,8 @@ namespace CrestronDeploymentTool.Discovery
 
                     string data = Encoding.ASCII.GetString(bytes);
 
+                    Log.Debug($"{prefix} Received: {Utilities.TextHelpers.CleanString(data)} from device @ {ipaddr}");
+
                     Match match = Regex.Match(data, discoveryResponsePattern);
                     
                     if (match.Groups.Count >= 3)
