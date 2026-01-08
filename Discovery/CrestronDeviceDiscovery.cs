@@ -177,8 +177,6 @@ namespace CrestronDeploymentTool.Discovery
                 token.Cancel();
                 Log.Debug($"{prefix} Timer Expired...Cancelling Token");
             }
-
-           
         }
 
         /// <summary>
