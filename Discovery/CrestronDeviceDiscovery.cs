@@ -27,7 +27,7 @@ namespace CrestronDeploymentTool.Discovery
         private const int discoveryAdditionalTime = 2000;
         private const int discoveryPacketPauseTime = 500;
         private const int discoveryPacketBroadcasts = 3;
-        private const string discoveryResponsePattern = @"(?<hostname>[\w-]*)\x00+(?<description>[\x20-\x7E]*\])(\s*\@(?<devid>[\x20-\x7E]*))?";
+        private const string discoveryResponsePattern = @"\x00*(?<hostname>[a-zA-Z0-9-]*)[\s\x00]*(?<model>[a-zA-Z0-9-]+)[\s\x00\w]*?\[(?<firmware>[^,#\]]+?(?:\([^)]*\))?)(?:,\s*#(?<serial>[^\]]+))?\]\s*@?(?<devid>[\w-]+)?";
         private static readonly byte[] discoveryRequestHeader = new byte[] { 0x14, 0x00, 0x00, 0x00, 0x01, 0x04, 0x00, 0x03, 0x00, 0x00 };
         private static readonly byte[] discoveryResponse = new byte[] { 0x15, 0x00, 0x00, 0x00 };
 
