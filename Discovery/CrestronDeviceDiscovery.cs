@@ -86,28 +86,28 @@ namespace CrestronDeploymentTool.Discovery
                 {
                     try
                     {
-                    IPAddress? address = intf.GetIPProperties()?.UnicastAddresses.First(a => a.Address.AddressFamily == AddressFamily.InterNetwork).Address;
+                        IPAddress? address = intf.GetIPProperties()?.UnicastAddresses.First(a => a.Address.AddressFamily == AddressFamily.InterNetwork).Address;
                         
                         if (address != null)
                         {
                             IPEndPoint local = new IPEndPoint(address, discoveryPort);
                             UdpClient client = new UdpClient(local);
-                        client.EnableBroadcast = true;
-                        //listen for responses in a separate thread
+                            client.EnableBroadcast = true;
+                            //listen for responses in a separate thread
                             _ = Task.Run(async () => { await Listen(client, cancellationToken); });
-                        
-                        byte[] discover = GenerateDiscoveryPacket();
-                        
+
+                            byte[] discover = GenerateDiscoveryPacket();
+
                             for (int i = 0; i < discoveryPacketBroadcasts; i++)
                             {
                                 IPEndPoint broadcast = new IPEndPoint(IPAddress.Broadcast, discoveryPort);
                                 int sent = await client.SendAsync(discover, discover.Count(), broadcast);
                                 Log.Information($"{prefix} UDP Broadcast Sent: {sent} bytes from {client.Client.LocalEndPoint} -> {broadcast}");
-                            Thread.Sleep(discoveryPacketPauseTime);
+                                Thread.Sleep(discoveryPacketPauseTime);
+                            }
+                            client.Dispose();
                         }
-                        client.Dispose();
                     }
-                }
                     catch (SocketException ex) {
                         Log.Fatal($"{prefix} {ex.Message}");
                         Application.Current.Dispatcher.Invoke(() => { ConfirmationDialog.Show($"Exception Encountered:\r\r{ex.Message}", "Discovery -> Socket Exception", MessageBoxButton.OK); }); 
