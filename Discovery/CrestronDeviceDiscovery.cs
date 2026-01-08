@@ -139,7 +139,7 @@ namespace CrestronDeploymentTool.Discovery
 
                     Match match = Regex.Match(data, discoveryResponsePattern);
                     
-                    if (match.Groups.Count >= 3)
+                    if (match.Groups.Count != 0)
                     {
                         string name = match.Groups["hostname"].Value;
                         string model = match.Groups["model"].Value;
