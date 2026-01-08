@@ -223,6 +223,7 @@ namespace CrestronDeploymentTool.Model.TargetDevices.DeviceDeployment
                 try
                 {
                     action.Status = DeviceDeploymentActionStatus.SendingCommand;
+
                     if (command != String.Empty)
                     {
                         action.Status = DeviceDeploymentActionStatus.Waiting;
@@ -234,7 +235,7 @@ namespace CrestronDeploymentTool.Model.TargetDevices.DeviceDeployment
                         {
                             action.Status = DeviceDeploymentActionStatus.WaitingForResponse;
 
-                            Log.Debug($"{prefix} {device.Name} @ {device.IpAddress} SSH Command Result -> {CleanString(cmd?.Result)}{(cmd?.Error == null ? "" : " // " + CleanString(cmd?.Error))}{(cmd?.ExitStatus == null ? "" : " // " + cmd?.ExitStatus)}");
+                            Log.Debug($"{prefix} {device.Name} @ {device.IpAddress} SSH Command Result: {CleanString(cmd?.Result)} {(cmd?.Error == String.Empty ? "" : " // Error:" + cmd?.Error)} {(cmd?.ExitStatus == null ? "" : " // Exit Status:" + cmd?.ExitStatus)}");
 
                             if (cmd?.Result != null) { UpdateResponse(cmd.Result, device, action); }
                             
