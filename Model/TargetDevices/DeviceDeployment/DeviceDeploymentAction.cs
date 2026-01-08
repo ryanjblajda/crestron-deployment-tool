@@ -241,12 +241,15 @@ namespace CrestronDeploymentTool.Model.TargetDevices.DeviceDeployment
                             
                             if (cmd?.Error != null) { UpdateResponse(cmd?.Error, device, action); }
 
-                            if (cmd?.ExitStatus == 0 || cmd?.ExitStatus == null) 
+                            if (cmd?.ExitStatus == 0 || cmd?.Error == String.Empty)
                             { 
+                                Log.Information($"{prefix} Command {command} Successfully sent to {device.Name} @ {device.IpAddress}");
                                 action.Status = DeviceDeploymentActionStatus.SendingCommandSuccess;
                                 success = true;
                             }
-                            else { action.Status = DeviceDeploymentActionStatus.SendingCommandFailed; }
+                            else {
+                                Log.Information($"{prefix} Command {command} Failure sending to {device.Name} @ {device.IpAddress}");
+                                action.Status = DeviceDeploymentActionStatus.SendingCommandFailed; 
                         }
                         else { Log.Debug($"{prefix} No Command Provided"); }
 
