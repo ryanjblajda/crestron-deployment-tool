@@ -923,7 +923,7 @@ namespace CrestronDeploymentTool.Model.Deployment
             if (cancel) { return (null, null); }
 
             //determine if we should provide a re-selection dialog for each of the deployment actions (users may want to only deploy to certain devices
-            bool reselectTargetDevices = selectedActions.Count > 1;
+            bool reselectTargetDevices = selectedActions.Count > 1 && DiscoveredDevices.SelectedTargetDevices.Count > 1;
 
             //run through the wizard for each deployment action selected
             selectedActions.ForEach(action =>
