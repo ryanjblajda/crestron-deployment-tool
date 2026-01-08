@@ -156,7 +156,7 @@ namespace CrestronDeploymentTool.Discovery
                                     //reset for another 8 seconds
                                     timer.Change(discoveryAdditionalTime, Timeout.Infinite);
                                     Log.Debug($"{prefix} Device Found, Discovery Time Extended by {discoveryAdditionalTime / 1000}s");
-                                    DiscoveredDevices.AddDevice(new CrestronDevice(name, description, ipaddr), DiscoveredDevices.AvailableDiscoveredDevices);
+                                    DiscoveredDevices.AddDevice(new CrestronDevice(name, model, serial, firmware, ipaddr), DiscoveredDevices.AvailableDiscoveredDevices);
                                 }
                             }
                         });
