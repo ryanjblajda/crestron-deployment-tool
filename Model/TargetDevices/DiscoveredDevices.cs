@@ -20,6 +20,8 @@ namespace CrestronDeploymentTool.Model.TargetDevices
     /// </summary>
     public static class DiscoveredDevices
     {
+        private const string prefix = "DiscoveredDevices";
+
         public static readonly ImmutableList<string> ProgrammingCapableDevices = [
             "MC", 
             "CP",
