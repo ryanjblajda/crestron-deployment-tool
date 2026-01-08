@@ -107,17 +107,6 @@ namespace CrestronDeploymentTool.Model.TargetDevices.DeviceDeployment
         }
 
         /// <summary>
-        /// cleans a string of unusable characters
-        /// </summary>
-        /// <param name="data">the string to clean</param>
-        /// <returns>the cleaned string</returns>
-        private static string CleanString(string? data)
-        {
-            if (data != null) { return Regex.Replace(data, @"[^\x20-\x7E]", ""); }
-            else { return String.Empty; }
-        }
-
-        /// <summary>
         /// updates the console response field with data incoming from the device
         /// </summary>
         /// <param name="line">the newest line of data</param>

@@ -16,6 +16,17 @@ namespace CrestronDeploymentTool.Utilities
     internal static class TextHelpers
     {
         /// <summary>
+        /// cleans a string of unusable characters
+        /// </summary>
+        /// <param name="data">the string to clean</param>
+        /// <returns>the cleaned string</returns>
+        internal static string CleanString(string? data)
+        {
+            if (data != null) { return Regex.Replace(data, @"[^\x20-\x7E]", ""); }
+            else { return String.Empty; }
+        }
+
+        /// <summary>
         /// parses a string with simple markup (*bold*, **italic**, ***bolditalic***) into a TextBlock.
         /// </summary>
         public static void ParseFormattedText(string input, TextBlock target)
