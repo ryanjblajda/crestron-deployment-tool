@@ -22,10 +22,10 @@ namespace CrestronDeploymentTool.Model.TargetDevices
         private bool _isSelected;
         public bool IsSelected { get => _isSelected; set { _isSelected = value; OnPropertyChanged(nameof(IsSelected)); } }
         public string Name { get; private set; }
-        public string Description { get; private set; }
+        public string FirmwareVersion { get; private set; }
         public string IpAddress { get; private set; }
         public string Model { get; private set; }
-
+        public string Serial { get; private set; }
         internal SshClient? SshClient { get; private set; }
         internal TcpClient? TcpClient { get; private set; }
         internal SftpClient? SftpClient { get; private set; }
@@ -39,16 +39,17 @@ namespace CrestronDeploymentTool.Model.TargetDevices
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
         }
 
-        public CrestronDevice(string name, string description, string ipaddress)
+        public CrestronDevice(string name, string model, string serial, string firmware, string ipaddress)
         {
             DeploymentActions = new ObservableCollection<DeviceDeploymentAction>();
 
-            Log.Information($"{prefix} Creating New Device: {name} => {description} @ {ipaddress}");
-
             Name = name.ToUpper();
-            Description = description.ToUpper();
-            Model = description.Split("\x20")[0].Trim().ToUpper();
+            FirmwareVersion = firmware;
+            Model = model.ToUpper();
             IpAddress = ipaddress;
+            Serial = serial;
+
+            Log.Information($"{prefix} Creating New Device: {name} => {model} @ {ipaddress} [{serial}]");
         }
 
         /// <summary>
