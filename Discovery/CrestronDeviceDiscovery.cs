@@ -25,6 +25,8 @@ namespace CrestronDeploymentTool.Discovery
         private const string prefix = "Device Discovery |";
         public static bool IsDiscoveryActive { get; private set; }
 
+        public static CancellationTokenSource? CancellationToken;
+
         private const int discoveryPort = 41794;
         private const int discoveryInitialTime = 8000;
         private const int discoveryAdditionalTime = 2000;
