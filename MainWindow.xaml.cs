@@ -151,7 +151,7 @@ namespace CrestronDeploymentTool
                         {
                             try
                             {
-                                Log.Information($"{prefix} Starting Task Thread For {d.Name} @ {d.IpAddress} Deployment Actions");
+                                Log.Information($"{prefix} Starting Task Thread For {d.NetworkConfiguration.Hostname} @ {d.NetworkConfiguration.IPAddress} Deployment Actions");
 
                                 if (customUserName != null && customPassword != null) { d.Deploy(customUserName, customPassword, deploymentCancellationToken.Token); }
                                 else { Log.Error($"{prefix} username and password not provided"); }
