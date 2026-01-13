@@ -19,7 +19,6 @@ namespace CrestronDeploymentTool.Model.Deployment
         public const string ProvisionNewDevice = "Provision New Device";
         public const string SetNetworkInformation = "Set/Update IP Configuration";
 
-
         static DeploymentWizardActions()
         {
             if (DesignerProperties.GetIsInDesignMode(new DependencyObject())) { LoadElements(); }
