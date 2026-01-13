@@ -85,11 +85,11 @@ namespace CrestronDeploymentTool.Model.TargetDevices
             {
                 if (device.IsSelected) { 
                     AddDevice(device, SelectedTargetDevices);
-                    Log.Debug($"Adding {device.Name} @ {device.IpAddress} [{device.Serial}] from Selected Target Device List");
+                    Log.Debug($"Adding {device.NetworkConfiguration.Hostname} @ {device.NetworkConfiguration.IPAddress} [{device.Serial}] from Selected Target Device List");
                 }
                 else { 
                     SelectedTargetDevices.Remove(device);
-                    Log.Debug($"Removing {device.Name} @ {device.IpAddress} [{device.Serial}] from Selected Target Device List");
+                    Log.Debug($"Removing {device.NetworkConfiguration.Hostname} @ {device.NetworkConfiguration.IPAddress} [{device.Serial}] from Selected Target Device List");
                 }
             }
         }
@@ -100,11 +100,11 @@ namespace CrestronDeploymentTool.Model.TargetDevices
         /// <param name="device">the new device</param>
         public static void AddDevice(CrestronDevice device, ObservableCollection<CrestronDevice> targetList)
         {
-            if (!targetList.Any(d => (d.Serial == device.Serial && device.Serial != null) || (d.IpAddress == device.IpAddress && device.IpAddress != null) || d.Name == device.Name && device.Name != null))
+            if (!targetList.Any(d => (d.Serial == device.Serial && device.Serial != null) || (d.NetworkConfiguration.IPAddress == device.NetworkConfiguration.IPAddress && device.NetworkConfiguration.IPAddress != null) || d.NetworkConfiguration.Hostname == device.NetworkConfiguration.Hostname && device.NetworkConfiguration.Hostname != null))
             {
                 lock (targetList) { targetList.Add(device); }
             }
-            else { Log.Debug($"Not adding {device.Name} @ {device.IpAddress} [{device.Serial}]"); }
+            else { Log.Debug($"Not adding {device.NetworkConfiguration.Hostname} @ {device.NetworkConfiguration.IPAddress} [{device.Serial}]"); }
         }
     }
 }

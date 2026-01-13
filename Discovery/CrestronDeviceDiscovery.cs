@@ -146,16 +146,29 @@ namespace CrestronDeploymentTool.Discovery
                         string firmware = match.Groups["firmware"].Value;
                         string serial = match.Groups["serial"].Value;
 
-                        Log.Debug($"NAME: {name} MODEL: {model} FIRMWARE: {firmware} SERIAL: {serial}");
+                        Log.Debug($"{prefix} NAME: {name} MODEL: {model} FIRMWARE: {firmware} SERIAL: {serial}");
 
                         Application.Current.Dispatcher.Invoke(() =>
                         {
                             lock (DiscoveredDevices.AvailableDiscoveredDevices)
                             {
-                                if (!DiscoveredDevices.AvailableDiscoveredDevices.ToList().Any(d => d.IpAddress == ipaddr)) {
+                                if (!DiscoveredDevices.AvailableDiscoveredDevices.ToList().Any(d => d.Serial == serial))
+                                {
                                     timer.Change(discoveryAdditionalTime, Timeout.Infinite);
                                     Log.Debug($"{prefix} Device Found, Discovery Time Extended by {discoveryAdditionalTime / 1000}s");
                                     DiscoveredDevices.AddDevice(new CrestronDevice(name, model, serial, firmware, ipaddr), DiscoveredDevices.AvailableDiscoveredDevices);
+                                }
+                                else
+                                {
+                                    Log.Debug($"{prefix} Existing Device Response, Updating Device Details...");
+                                    CrestronDevice? match = DiscoveredDevices.AvailableDiscoveredDevices.ToList().Find(d => d.Serial == serial);
+                                    //if we find a matching serial number, update the details if needed
+                                    if (match != null)
+                                    {
+                                        if (match.Model != model) { match.Model = model; }
+                                        if (match.NetworkConfiguration.Hostname != name) { match.NetworkConfiguration.Hostname = name; }
+                                        if (match.FirmwareVersion != firmware) match.FirmwareVersion = firmware;
+                                    }
                                 }
                             }
                         });
