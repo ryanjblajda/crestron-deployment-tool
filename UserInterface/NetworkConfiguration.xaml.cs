@@ -20,9 +20,11 @@ namespace CrestronDeploymentTool.UserInterface
     /// </summary>
     public partial class NetworkConfiguration : Window
     {
-        public NetworkConfiguration()
+        public NetworkConfiguration(string prompt, string title)
         {
             InitializeComponent();
+            TextHelpers.ParseFormattedText(prompt, this.Prompt);
+            this.Title = title;
         }
 
         private void SetValidEntryBackground(TextBox item, bool valid)

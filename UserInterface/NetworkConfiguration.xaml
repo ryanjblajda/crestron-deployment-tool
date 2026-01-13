@@ -26,8 +26,7 @@
             <RowDefinition/>
             <RowDefinition/>
         </Grid.RowDefinitions>
-        <TextBlock Margin="10" Foreground="WhiteSmoke" FontSize="18" TextAlignment="Center" VerticalAlignment="Center" Grid.ColumnSpan="2">
-            Please select the network options you would like to update.
+        <TextBlock TextWrapping="Wrap" x:Name="Prompt" Margin="10" Foreground="WhiteSmoke" FontSize="18" TextAlignment="Center" VerticalAlignment="Center" Grid.ColumnSpan="2">
         </TextBlock>
         <TextBlock Margin="10" Padding="5" Foreground="White" VerticalAlignment="Center" HorizontalAlignment="Stretch" TextAlignment="Center"  FontSize="20"  Grid.Row="1" Grid.Column="0">
             Enable DHCP
