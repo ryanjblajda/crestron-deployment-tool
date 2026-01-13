@@ -11,8 +11,10 @@ namespace CrestronDeploymentTool.Model.Deployment.ProvisioningState
         WaitingUsername,
         WaitingPassword,
         WaitingVerification,
-        Complete,
+        WaitingComplete,
         Success,
-        Failure
+        Failure,
+        Error,
+        NotStarted
     }
 }
