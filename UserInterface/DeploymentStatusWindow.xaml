@@ -32,7 +32,7 @@
                     <DataTemplate>
                         <Border Margin="5" HorizontalAlignment="Stretch" Background="{StaticResource PrimaryBlue}" BorderThickness="0" CornerRadius="5" Padding="5">
                             <StackPanel Background="Transparent" HorizontalAlignment="Stretch">
-                                <TextBlock FontSize="24" Foreground="White" Text="{Binding Name}" />
+                                <TextBlock FontSize="24" Foreground="White" Text="{Binding NetworkConfiguration.Hostname}" />
                                 <ListView BorderThickness="0" Background="Transparent" ItemsSource="{Binding DeploymentActions}">
                                     <ListView.ItemsPanel>
                                         <ItemsPanelTemplate>
