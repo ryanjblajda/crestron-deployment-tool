@@ -24,9 +24,6 @@ namespace CrestronDeploymentTool
         private DeploymentStatusWindow? deploymentStatusWindow;
         public DeploymentStatus Deployment = new DeploymentStatus();
         private CancellationTokenSource? deploymentCancellationToken;
-
-        private string? customUserName = null;
-        private string? customPassword = null;
         
         public MainWindow()
         {
@@ -111,7 +108,7 @@ namespace CrestronDeploymentTool
             if (this.Deployment.Running == false)
             {
                 //run the main wizard
-                (customUserName, customPassword) = DeploymentWizard.ConfigureDeployment(customUserName, customPassword, this);
+                (DeploymentResources.customUserName, DeploymentResources.customPassword) = DeploymentWizard.ConfigureDeployment(DeploymentResources.customUserName, DeploymentResources.customPassword, this);
                 //show the deployment window to the user to allow them to begin the deployment or clear all actions if needed
                 this.ShowDeploymentWindow();
             }
@@ -153,7 +150,7 @@ namespace CrestronDeploymentTool
                             {
                                 Log.Information($"{prefix} Starting Task Thread For {d.NetworkConfiguration.Hostname} @ {d.NetworkConfiguration.IPAddress} Deployment Actions");
 
-                                if (customUserName != null && customPassword != null) { d.Deploy(customUserName, customPassword, deploymentCancellationToken.Token); }
+                                if (DeploymentResources.customUserName != null && DeploymentResources.customPassword != null) { d.Deploy(DeploymentResources.customUserName, DeploymentResources.customPassword, deploymentCancellationToken.Token); }
                                 else { Log.Error($"{prefix} username and password not provided"); }
                             }
                             catch (OperationCanceledException ex) { Log.Information($"{prefix} Operation Canceled {ex.Message}"); }
