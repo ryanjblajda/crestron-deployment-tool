@@ -13,6 +13,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text.RegularExpressions;
 using System.Text;
+using System.Security.Cryptography;
 
 namespace CrestronDeploymentTool.Model.TargetDevices
 {
@@ -29,14 +30,13 @@ namespace CrestronDeploymentTool.Model.TargetDevices
         public string Model { get; internal set; }
         public string Serial { get; private set; }
 
-        public DeviceNetworkConfiguration NetworkConfiguration;
+        public DeviceNetworkConfiguration NetworkConfiguration { get; private set; }
 
         internal SshClient? SshClient;
         internal TcpClient? TcpClient;
         internal SftpClient? SftpClient;
 
         public event PropertyChangedEventHandler? PropertyChanged;
-
         public ObservableCollection<DeviceDeploymentAction> DeploymentActions { get; private set; }
 
         protected void OnPropertyChanged(string property)
@@ -306,9 +306,23 @@ namespace CrestronDeploymentTool.Model.TargetDevices
         /// <param name="action">a reference to the action that called the function</param>
         /// <param name="cancel">a cancellation token to listen to so that this action can be cancelled if needed</param>
         /// <returns></returns>
-        private bool SendCommandSsh(string command, DeviceDeploymentAction action, CancellationToken cancel)
+        private (bool, string?) SendCommandSsh(string command, DeviceDeploymentAction action, CancellationToken cancel)
         {
             bool success = false;
+            string? result = null;
+
+            if (this.SshClient == null) {
+                string user = Constants.DefaultUsername;
+                string pass = Constants.DefaultPassword;
+
+                if (DeploymentResources.customUserName != null && DeploymentResources.customPassword != null) 
+                {
+                    user = DeploymentResources.customUserName;
+                    pass = DeploymentResources.customPassword;
+                }
+
+                this.SshClient = new SshClient(this.NetworkConfiguration.IPAddress, user, pass);
+            }
 
             if (this.SshClient != null)
             {
@@ -331,6 +345,8 @@ namespace CrestronDeploymentTool.Model.TargetDevices
                             action.Status = DeviceDeploymentActionStatus.WaitingForResponse;
 
                             Log.Debug($"{prefix} {this.NetworkConfiguration.Hostname} @ {this.NetworkConfiguration.IPAddress} SSH Command Result: {Utilities.TextHelpers.CleanString(cmd?.Result)} {(cmd?.Error == String.Empty ? "" : " // Error:" + cmd?.Error)} {(cmd?.ExitStatus == null ? "" : " // Exit Status:" + cmd?.ExitStatus)}");
+
+                            result = cmd?.Result;
 
                             if (cmd?.Result != null) { UpdateResponse(cmd.Result, action); }
 
@@ -367,7 +383,7 @@ namespace CrestronDeploymentTool.Model.TargetDevices
                 Log.Warning($"{prefix} Device: {this.NetworkConfiguration.Hostname} @ {this.NetworkConfiguration.IPAddress} -> {action.Message}");
             }
 
-            return success;
+            return (success, result);
         }
 
         /// <summary>
@@ -377,18 +393,21 @@ namespace CrestronDeploymentTool.Model.TargetDevices
         /// <param name="action">a reference to the action that called the function</param>
         /// <param name="cancel">a cancellation token to listen to so that this action can be cancelled if needed</param>
         /// <returns>a bool representing whether or not the command was sent to the device, not necessarily whether the command has a positive response</returns>
-        public bool SendConsoleCommand(string command, DeviceDeploymentAction action, CancellationToken cancel)
+        public bool SendConsoleCommand(string command, DeviceDeploymentAction? action, CancellationToken cancel)
         {
             if (Cancellation.CheckTokenStatus(cancel, action)) return false;
 
             bool success = false;
+
+            //make sure that there is a deployment action regardless of what is passed.
+            action = action == null ? new DeviceDeploymentAction("", "") : action;
 
             ConnectionResult connection = this.ConnectConsole(action);
 
             switch (connection)
             {
                 case ConnectionResult.UseSsh:
-                    success = SendCommandSsh(command, action, cancel);
+                    success = SendCommandSsh(command, action, cancel).Item1;
                     break;
                 case ConnectionResult.UseTelnet:
                     success = SendCommandTelnet(command, action);
@@ -396,6 +415,13 @@ namespace CrestronDeploymentTool.Model.TargetDevices
             }
 
             return success;
+        }
+
+        public string? SendConsoleCommandWithResponse(string command, CancellationToken cancel)
+        {
+            string? response = SendCommandSsh(command, new DeviceDeploymentAction("dummy", ""), cancel).Item2;
+
+            return response;
         }
 
         /// <summary>
@@ -683,9 +709,12 @@ namespace CrestronDeploymentTool.Model.TargetDevices
             return success;
         }
 
-        public void GetCurrentIPConfiguration()
+        public DeviceNetworkConfiguration GetCurrentNetworkConfiguration(CancellationToken cancel)
         {
             //run commands to update status
+            this.SendConsoleCommandWithResponse("dhcp", cancel);
+
+            return this.NetworkConfiguration;
         }
 
         public bool UpdateDnsServer(string server, DeviceDeploymentAction action, CancellationToken token)
