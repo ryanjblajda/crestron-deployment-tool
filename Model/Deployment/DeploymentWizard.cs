@@ -18,6 +18,13 @@ namespace CrestronDeploymentTool.Model.Deployment
     {
         private static Window? mainWindow;
         private const string prefix = "DeploymentWizard |";
+
+        /// <summary>
+        /// asks the user for connection details requiring an entry before continuing
+        /// </summary>
+        /// <param name="owner">the window owner</param>
+        /// <param name="prompt">the string prompt to provide to the end user if needed</param>
+        /// <returns></returns>
         public static (string, string, bool) ConnectionDetails(Window owner, string? prompt = null)
         {
             mainWindow = owner;
@@ -654,6 +661,17 @@ namespace CrestronDeploymentTool.Model.Deployment
             return (canceled);
         }
 
+        private static DeviceNetworkConfiguration GetCurrentNetworkConfiguration(CrestronDevice device, CancellationToken token)
+        {
+            DeviceNetworkConfiguration config = device.GetCurrentNetworkConfiguration(token);
+
+            string? response = device.SendConsoleCommandWithResponse("dhcp", token);
+
+            if (response != null) { Log.Debug($"{prefix} DHCP Status: {response}"); }
+
+            return config;
+        }
+
         /// <summary>
         /// a wizard for guiding the user through the configuration the network settings on the selected devices
         /// </summary>
@@ -679,13 +697,16 @@ namespace CrestronDeploymentTool.Model.Deployment
                 bool updateDNSPrimary = false;
                 bool updateDNSSecondary = false;
                 bool updateHostname = false;
-                string ipAddress = String.Empty;
-                string subnetMask = String.Empty;
-                string gateway = String.Empty;
-                string dnsPrimary = String.Empty;
-                string dnsSecondary = String.Empty;
-                string hostname = String.Empty;
 
+                string hostname = "";
+                string ipAddress = "";
+                string subnetMask = "";
+                string gateway = "";
+                string dnsSecondary = "";
+                string dnsPrimary = "";
+
+                DeviceNetworkConfiguration current = GetCurrentNetworkConfiguration(device, new CancellationTokenSource().Token);
+                
                 //make sure user confirms or cancels the operation
                 while (!confirmed && !canceled)
                 {
@@ -751,7 +772,7 @@ namespace CrestronDeploymentTool.Model.Deployment
                         if (cancelOperation == MessageBoxResult.No) { canceled = true; }
                     }
                 }
-
+                
                 if (canceled) { canceledDevices.Add(device); }
 
                 if (confirmed)
