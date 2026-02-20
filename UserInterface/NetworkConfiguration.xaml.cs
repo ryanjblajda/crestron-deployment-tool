@@ -1,6 +1,8 @@
-﻿using CrestronDeploymentTool.Utilities;
+﻿using CrestronDeploymentTool.Model.TargetDevices;
+using CrestronDeploymentTool.Utilities;
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -20,11 +22,22 @@ namespace CrestronDeploymentTool.UserInterface
     /// </summary>
     public partial class NetworkConfiguration : Window
     {
-        public NetworkConfiguration(string prompt, string title)
+        public DeviceNetworkConfiguration Configuration = new DeviceNetworkConfiguration("", "");
+
+        public NetworkConfiguration(string prompt, string title, DeviceNetworkConfiguration configuration)
         {
             InitializeComponent();
             TextHelpers.ParseFormattedText(prompt, this.Prompt);
             this.Title = title;
+
+            this.EnableDHCP.IsChecked = configuration.DHCP;
+            this.HostnameEntered.Text = configuration.Hostname;
+            this.IPAddressEntered.Text = configuration.IPAddress;
+            this.SubnetMaskEntered.Text = configuration.Netmask;
+            this.DefaultGatewayEntered.Text = configuration.DefaultGateway;
+
+            if (configuration.DnsServers.Count > 0) { this.PrimaryDNSEntered.Text = configuration.DnsServers[0]; }
+            if (configuration.DnsServers.Count > 1) { this.SecondaryDNSEntered.Text = configuration.DnsServers[1]; }
         }
 
         private void SetValidEntryBackground(TextBox item, bool valid)
@@ -47,7 +60,7 @@ namespace CrestronDeploymentTool.UserInterface
             }
             else
             {
-                if ((NetworkValidators.IsValidHostname(HostnameEntered.Text) || IPAddressEntered.Text == String.Empty)) { ConfirmButton.IsEnabled = true; }
+                if (NetworkValidators.IsValidHostname(HostnameEntered.Text) || HostnameEntered.Text == String.Empty) { ConfirmButton.IsEnabled = true; }
                 else { ConfirmButton.IsEnabled = false; }
             }
         }
@@ -80,6 +93,14 @@ namespace CrestronDeploymentTool.UserInterface
 
         private void OnConfirmConfigurationClicked(object sender, RoutedEventArgs e)
         {
+            if (this.EnableDHCP.IsChecked != null) { this.Configuration.DHCP = this.EnableDHCP.IsChecked.Value; } ;
+            this.Configuration.Hostname = this.HostnameEntered.Text;
+            this.Configuration.IPAddress = this.IPAddressEntered.Text;
+            this.Configuration.Netmask = this.SubnetMaskEntered.Text;
+            this.Configuration.DefaultGateway = this.DefaultGatewayEntered.Text;
+            this.Configuration.DnsServers.Add(this.PrimaryDNSEntered.Text);
+            this.Configuration.DnsServers.Add(this.SecondaryDNSEntered.Text);
+
             this.DialogResult = true;
             this.Close();
         }
