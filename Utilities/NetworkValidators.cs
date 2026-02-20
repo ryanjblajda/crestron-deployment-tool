@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using Serilog;
+using System.Net;
 using System.Text.RegularExpressions;
 
 namespace CrestronDeploymentTool.Utilities
@@ -8,9 +9,20 @@ namespace CrestronDeploymentTool.Utilities
     /// </summary>
     public static class NetworkValidators
     {
-        private static readonly Regex ValidIPAddressPattern = new(@"^\d{1,3}(\.\d{1,3}){3}$");
+        private const string prefix = "NetworkValidators |";
+
+        private static readonly Regex ValidIPAddressPattern = new(@"[\d]+\.[\d]+\.[\d]+\.[\d]+");
 
         private static readonly Regex ValidHostnamePattern = new(@"^(?=.{1,253}$)(?!-)[A-Za-z0-9-]{1,63}(?<!-)(\.(?!-)[A-Za-z0-9-]{1,63}(?<!-))*$");
+
+        public static string NormalizeIPAddress(string ip)
+        {
+            var parts = ip.Split('.');
+            
+            if (parts.Length != 4) { return ip; }
+
+            return string.Join(".", parts.Select(p => int.Parse(p).ToString()));
+        }
 
         /// <summary>
         /// checks if a string is a valid ip address
@@ -19,9 +31,16 @@ namespace CrestronDeploymentTool.Utilities
         /// <returns>a bool representing whether the string can be a valid ip address</returns>
         public static bool IsValidIPAddress(string value)
         {
-            if (!ValidIPAddressPattern.IsMatch(value)) { return false; }
-
-            return IPAddress.TryParse(value, out var ip) && ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork;
+            if (!ValidIPAddressPattern.IsMatch(value)) 
+            {
+                Log.Information($"{prefix} {value} does not regex match");
+                return false;
+            }
+            
+            bool result = IPAddress.TryParse(value, out var ip);
+            Log.Information($"{prefix} {value} is not valid ip address");
+            
+            return result && ip?.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork;
         }
 
         /// <summary>
