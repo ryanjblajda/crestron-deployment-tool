@@ -30,6 +30,8 @@ namespace CrestronDeploymentTool.Model.TargetDevices
         public string Model { get; internal set; }
         public string Serial { get; private set; }
 
+        private string NetworkConfigurationPattern = @"ip address[\s\.]*:[\s]*(?<ipaddress>[\d]+\.[\d]+\.[\d]+\.[\d]+)[\s\S]*subnet mask[\s\.]*:[\s]*(?<subnet>[\d]+.[\d]+.[\d]+.[\d]+)[\s\S]*(default\s*gateway|def\s*router)[\s\.]*:[\s]*((?<gateway>[\d]+\.[\d]+\.[\d]+\.[\d]+))?";
+
         public DeviceNetworkConfiguration NetworkConfiguration { get; private set; }
 
         internal SshClient? SshClient;
@@ -120,6 +122,8 @@ namespace CrestronDeploymentTool.Model.TargetDevices
         {
             ConnectionResult result = ConnectionResult.ConnectionFailure;
 
+            if (this.SshClient == null) { this.SshClient = new SshClient(this.NetworkConfiguration.IPAddress, DeploymentResources.customUserName, DeploymentResources.customPassword); }
+
             if (this.SshClient != null)
             {
                 action.Status = DeviceDeploymentActionStatus.Waiting;
@@ -139,20 +143,32 @@ namespace CrestronDeploymentTool.Model.TargetDevices
                 {
                     action.Status = DeviceDeploymentActionStatus.SSHFailed;
                     action.Message = sshEx.Message;
+                    Log.Information($"{prefix} Device: {this.NetworkConfiguration.Hostname} @ {this.NetworkConfiguration.IPAddress} | Failure to Connect via SSH");
 
                     if (sshEx.GetType() != typeof(SshAuthenticationException))
                     {
+ 
                         try
                         {
-                            if (this.TcpClient?.Connected == false) { this.TcpClient?.Connect(new IPEndPoint(IPAddress.Parse(this.NetworkConfiguration.IPAddress), Constants.TelnetPort)); }
-
-                            Log.Information($"{prefix} Device: {this.NetworkConfiguration.Hostname} @ {this.NetworkConfiguration.IPAddress} | Attempting to connect with Telnet");
+                            if (this.TcpClient == null) {
+                                Log.Information($"{prefix} Device: {this.NetworkConfiguration.Hostname} @ {this.NetworkConfiguration.IPAddress} | Creating New TCP Client");
+                                this.TcpClient = new TcpClient(); 
+                            }                            
                             
-                            action.Status = DeviceDeploymentActionStatus.TelnetSuccess;
-                            action.Message = "Connected via Telnet";
-                            result = ConnectionResult.UseTelnet;
+                            if (this.TcpClient?.Connected == false) {
+                                Log.Information($"{prefix} Device: {this.NetworkConfiguration.Hostname} @ {this.NetworkConfiguration.IPAddress} | Attempting to connect with Telnet");
+                                this.TcpClient?.Connect(new IPEndPoint(IPAddress.Parse(this.NetworkConfiguration.IPAddress), Constants.TelnetPort)); 
+                            }
 
-                            Log.Information($"{prefix} Device: {this.NetworkConfiguration.Hostname} @ {this.NetworkConfiguration.IPAddress} | Connected via Telnet");
+                            if (this.TcpClient?.Connected == true)
+                            {
+                                action.Status = DeviceDeploymentActionStatus.TelnetSuccess;
+                                action.Message = "Connected via Telnet";
+                                result = ConnectionResult.UseTelnet;
+
+                                Log.Information($"{prefix} Device: {this.NetworkConfiguration.Hostname} @ {this.NetworkConfiguration.IPAddress} | Connected via Telnet");
+                            }
+                            
                         }
                         catch (Exception telnetEx)
                         {
@@ -241,15 +257,20 @@ namespace CrestronDeploymentTool.Model.TargetDevices
         /// <param name="command">the command to send</param>
         /// <param name="action">a reference to the action that called the function</param>
         /// <returns></returns>
-        private bool SendCommandTelnet(string command, DeviceDeploymentAction action)
+        private (bool, string) SendCommandTelnet(string command, DeviceDeploymentAction action)
         {
             bool success = false;
+            string buffer = "";
+            bool disconnect = false;
+
+            Timer disconnectTimer = new Timer((object? obj) => { Log.Debug($"{prefix} Disconnect");  disconnect = true; });
 
             try
             {
-
                 if (this.TcpClient != null)
                 {
+                    this.TcpClient.ReceiveTimeout = 100;
+
                     if (this.TcpClient?.Connected == false) { this.ConnectConsole(action); }
 
                     Log.Debug($"{prefix} Running Command: {command} on {this.NetworkConfiguration.Hostname} @ {this.NetworkConfiguration.IPAddress} via Telnet");
@@ -261,30 +282,31 @@ namespace CrestronDeploymentTool.Model.TargetDevices
 
                     if (this.TcpClient?.GetStream().CanRead == true)
                     {
-                        bool endOfResponseFound = false;
-                        bool firstEndOfResponse = false;
-
-                        while (this.TcpClient?.Connected == true && !endOfResponseFound)
+                        //Log.Debug($"{!disconnect}");
+                        
+                        while (!disconnect)
                         {
                             byte[] buf = new byte[1024];
-                            this.TcpClient?.GetStream().Read(buf, 0, this.TcpClient.Available);
-                            string incoming = Encoding.ASCII.GetString(buf);
 
-                            UpdateResponse(incoming, action);
-
-                            Log.Debug($"{prefix} Incoming Telnet Data -> {Utilities.TextHelpers.CleanString(incoming)}");
-
-                            if (incoming.Contains(">"))
+                            if (this.TcpClient != null)
                             {
-                                if (firstEndOfResponse)
+                                int? read = this.TcpClient?.GetStream()?.Read(buf, 0, this.TcpClient.Available);
+                                
+                                Log.Debug($"{prefix} Read {read} Bytes");
+
+                                if (read != null)
                                 {
-                                    endOfResponseFound = true;
-                                    Log.Debug($"{prefix} End of Response Found (Bytes Available: {this.TcpClient?.Available}), Disconnecting");
-                                }
-                                else
-                                {
-                                    firstEndOfResponse = true;
-                                    Log.Debug($"{prefix} First End of Response Found, Staying Connected...");
+                                    string incoming = Encoding.ASCII.GetString(buf, 0, (int)read);
+
+                                    if (read > 0)
+                                    {
+                                        disconnectTimer.Change(1000, Timeout.Infinite);
+                                        
+                                        buffer += incoming;
+                                        Log.Debug($"{prefix} Incoming Telnet Data -> {Utilities.TextHelpers.CleanString(incoming)}");
+                                        Log.Debug($"{prefix} Reset Disconnect Timer");
+                                        UpdateResponse(incoming, action);
+                                    }
                                 }
                             }
                         }
@@ -293,10 +315,17 @@ namespace CrestronDeploymentTool.Model.TargetDevices
                         action.Status = DeviceDeploymentActionStatus.SendingCommandSuccess;
                     }
                 }
+                else
+                {
+                    Log.Fatal($"{prefix} TCP Client is Null!");
+                }
             }
-            catch (Exception ex) { action.Message = ex.Message; }
+            catch (Exception ex) {
+                Log.Fatal($"{prefix} {ex.Message}");
+                action.Message = ex.Message; 
+            }
 
-            return success;
+            return (success, buffer);
         }
 
         /// <summary>
@@ -312,22 +341,16 @@ namespace CrestronDeploymentTool.Model.TargetDevices
             string? result = null;
 
             if (this.SshClient == null) {
-                string user = Constants.DefaultUsername;
-                string pass = Constants.DefaultPassword;
 
-                if (DeploymentResources.customUserName != null && DeploymentResources.customPassword != null) 
-                {
-                    user = DeploymentResources.customUserName;
-                    pass = DeploymentResources.customPassword;
-                }
-
-                this.SshClient = new SshClient(this.NetworkConfiguration.IPAddress, user, pass);
+                this.SshClient = new SshClient(this.NetworkConfiguration.IPAddress, DeploymentResources.customUserName, DeploymentResources.customPassword);
             }
 
             if (this.SshClient != null)
             {
                 try
                 {
+                    if (!this.SshClient.IsConnected) { this.SshClient.Connect(); }
+
                     action.Status = DeviceDeploymentActionStatus.SendingCommand;
 
                     if (command != String.Empty)
@@ -373,14 +396,14 @@ namespace CrestronDeploymentTool.Model.TargetDevices
                     success = false;
                     action.Status = DeviceDeploymentActionStatus.SendingCommandFailed;
                     action.Message += $"\r{ex.Message}";
-                    Log.Fatal($"{prefix} Device: {this.NetworkConfiguration.Hostname} @ {this.NetworkConfiguration.IPAddress} -> {ex.Message}");
+                    Log.Fatal($"{prefix} Device: {this.NetworkConfiguration.Hostname} @ {this.NetworkConfiguration.IPAddress} -> SSH: {ex.Message}");
                 }
             }
             else
             {
                 action.Status = DeviceDeploymentActionStatus.CompleteFailure;
                 action.Message = "SSH Client Null!";
-                Log.Warning($"{prefix} Device: {this.NetworkConfiguration.Hostname} @ {this.NetworkConfiguration.IPAddress} -> {action.Message}");
+                Log.Warning($"{prefix} Device: {this.NetworkConfiguration.Hostname} @ {this.NetworkConfiguration.IPAddress} -> SSH: {action.Message}");
             }
 
             return (success, result);
@@ -393,11 +416,12 @@ namespace CrestronDeploymentTool.Model.TargetDevices
         /// <param name="action">a reference to the action that called the function</param>
         /// <param name="cancel">a cancellation token to listen to so that this action can be cancelled if needed</param>
         /// <returns>a bool representing whether or not the command was sent to the device, not necessarily whether the command has a positive response</returns>
-        public bool SendConsoleCommand(string command, DeviceDeploymentAction? action, CancellationToken cancel)
+        public (bool, string) SendConsoleCommand(string command, DeviceDeploymentAction? action, CancellationToken cancel)
         {
-            if (Cancellation.CheckTokenStatus(cancel, action)) return false;
+            if (Cancellation.CheckTokenStatus(cancel, action)) return (false, "");
 
             bool success = false;
+            string? incoming = String.Empty;
 
             //make sure that there is a deployment action regardless of what is passed.
             action = action == null ? new DeviceDeploymentAction("", "") : action;
@@ -407,19 +431,21 @@ namespace CrestronDeploymentTool.Model.TargetDevices
             switch (connection)
             {
                 case ConnectionResult.UseSsh:
-                    success = SendCommandSsh(command, action, cancel).Item1;
+                    (success, incoming) = SendCommandSsh(command, action, cancel);
                     break;
                 case ConnectionResult.UseTelnet:
-                    success = SendCommandTelnet(command, action);
+                    (success, incoming) = SendCommandTelnet(command, action);
                     break;
             }
 
-            return success;
+            if (incoming == null) { incoming = String.Empty; }
+
+            return (success, incoming);
         }
 
         public string? SendConsoleCommandWithResponse(string command, CancellationToken cancel)
         {
-            string? response = SendCommandSsh(command, new DeviceDeploymentAction("dummy", ""), cancel).Item2;
+            string response = SendConsoleCommand(command, new DeviceDeploymentAction("dummy", ""), cancel).Item2;
 
             return response;
         }
@@ -712,7 +738,85 @@ namespace CrestronDeploymentTool.Model.TargetDevices
         public DeviceNetworkConfiguration GetCurrentNetworkConfiguration(CancellationToken cancel)
         {
             //run commands to update status
-            this.SendConsoleCommandWithResponse("dhcp", cancel);
+            string? response = this.SendConsoleCommandWithResponse("dhcp", cancel)?.ToLower();
+            if (response != null) { Log.Debug($"{prefix} DHCP Status: {response}"); }
+
+            if (response?.Contains("on") == true)
+            {
+                this.NetworkConfiguration.DHCP = true;
+
+                response = this.SendConsoleCommandWithResponse("estatus", cancel)?.ToLower();
+
+                Log.Debug($"{prefix} DHCP Ethernet Configuration: {response}");
+
+                if (response != null)
+                {
+                    Match dhcpConfiguration = Regex.Match(response, this.NetworkConfigurationPattern);
+
+                    this.NetworkConfiguration.IPAddress = NetworkValidators.NormalizeIPAddress(dhcpConfiguration.Groups["ipaddress"].Value);
+                    this.NetworkConfiguration.Netmask = NetworkValidators.NormalizeIPAddress(dhcpConfiguration.Groups["subnet"].Value);
+                    this.NetworkConfiguration.DefaultGateway = NetworkValidators.NormalizeIPAddress(dhcpConfiguration.Groups["gateway"].Value);
+                    this.NetworkConfiguration.DnsServers.Add(NetworkValidators.NormalizeIPAddress(dhcpConfiguration.Groups["dns"].Value));
+                }
+            }
+            else if (response?.Contains("off") == true)
+            {
+                this.NetworkConfiguration.DHCP = false;
+
+                response = this.SendConsoleCommandWithResponse("ipaddr", cancel);
+
+                if (response != null)
+                {
+                    //Log.Debug($"{prefix} IP Address Status: {response.ToLower()}");
+                    if (Regex.IsMatch(response.ToLower(), @"[\d]+.[\d]+.[\d]+.[\d]+"))
+                    {
+                        Match ipAddr = Regex.Match(response.ToLower(), @"[\d]+.[\d]+.[\d]+.[\d]+");
+                        string ip = ipAddr.Value;
+                        Log.Debug($"{prefix} Static IP Address: {ip}");
+                        this.NetworkConfiguration.IPAddress = NetworkValidators.NormalizeIPAddress(ip);
+                    }
+                }
+
+                response = this.SendConsoleCommandWithResponse("listdns", cancel);
+                if (response != null)
+                {
+                    Log.Debug($"{prefix} DNS Servers: {response}");
+
+                    if (Regex.IsMatch(response.ToLower(), @"[\d]+.[\d]+.[\d]+.[\d]+"))
+                    {
+                        MatchCollection dns = Regex.Matches(response.ToLower(), @"[\d]+.[\d]+.[\d]+.[\d]+");
+                        dns.ToList().ForEach(m => this.NetworkConfiguration.DnsServers.Add(NetworkValidators.NormalizeIPAddress(m.Value)));
+                    }
+                }
+
+                response = this.SendConsoleCommandWithResponse("ipmask", cancel);
+                if (response != null)
+                {
+                    Log.Debug($"{prefix} Subnet Mask: {response}");
+
+                    if (Regex.IsMatch(response.ToLower(), @"[\d]+.[\d]+.[\d]+.[\d]+"))
+                    {
+                        Match ipAddr = Regex.Match(response.ToLower(), @"[\d]+.[\d]+.[\d]+.[\d]+");
+                        string ip = ipAddr.Value;
+                        Log.Debug($"{prefix} Subnet Mask: {ip}");
+                        this.NetworkConfiguration.Netmask = NetworkValidators.NormalizeIPAddress(ip);
+                    }
+                }
+
+                response = this.SendConsoleCommandWithResponse("defrouter", cancel);
+                if (response != null)
+                {
+                    Log.Debug($"{prefix} Default Router Address: {response}");
+
+                    if (Regex.IsMatch(response.ToLower(), @"[\d]+.[\d]+.[\d]+.[\d]+"))
+                    {
+                        Match ipAddr = Regex.Match(response.ToLower(), @"[\d]+.[\d]+.[\d]+.[\d]+");
+                        string ip = ipAddr.Value;
+                        Log.Debug($"{prefix} Default Router Address: {ip}");
+                        this.NetworkConfiguration.DefaultGateway = NetworkValidators.NormalizeIPAddress(ip);
+                    }
+                }
+            }
 
             return this.NetworkConfiguration;
         }
