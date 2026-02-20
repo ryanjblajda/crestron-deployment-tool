@@ -8,7 +8,7 @@ namespace CrestronDeploymentTool.Model.Deployment
 {
     internal static class DeploymentResources
     {
-        internal static string? customUserName = null;
-        internal static string? customPassword = null;
+        internal static string customUserName = "admin";
+        internal static string customPassword = "CCS$ervice";
     }
 }
