@@ -14,6 +14,8 @@ namespace CrestronDeploymentTool.Model.TargetDevices
         public string Netmask { get; internal set; }
         public string DefaultGateway { get; internal set; }
 
+        public bool DHCP { get; internal set; }
+
         public DeviceNetworkConfiguration(string host, string ip) 
         {
             this.Hostname = host;
