@@ -194,7 +194,7 @@ namespace CrestronDeploymentTool.Model.Deployment
                         //create a new action
                         DeviceDeploymentAction action = new DeviceDeploymentAction(DeploymentWizardActions.SendConsoleCommands, $"Perform {command} command on {d.NetworkConfiguration.Hostname} @ {d.NetworkConfiguration.Hostname}");
                         //assign a lamba function wrapping the send console command call, passing in the command, the device we need to perform the action on, and a reference to the action so that it can be updated with status
-                        action.AssignAction((token) => { return d.SendConsoleCommand(command, action, token); });
+                        action.AssignAction((token) => { return d.SendConsoleCommand(command, action, token).Item1; });
                         //assign that action to the device for later use
                         d.DeploymentActions.Add(action);
                     }); 
@@ -230,7 +230,7 @@ namespace CrestronDeploymentTool.Model.Deployment
                         //create a new action
                         DeviceDeploymentAction action = new DeviceDeploymentAction(DeploymentWizardActions.SendConsoleCommands, $"Perform {command} command on {d.NetworkConfiguration.Hostname} @ {d.NetworkConfiguration.Hostname}");
                         //assign a lamba function wrapping the send console command call, passing in the command, the device we need to perform the action on, and a reference to the action so that it can be updated with status
-                        action.AssignAction((token) => { return d.SendConsoleCommand(command, action, token); });
+                        action.AssignAction((token) => { return d.SendConsoleCommand(command, action, token).Item1; });
                         //assign that action to the device for later use
                         d.DeploymentActions.Add(action);
                     }
@@ -341,7 +341,7 @@ namespace CrestronDeploymentTool.Model.Deployment
                 if (confirmed)
                 {
                     DeviceDeploymentAction stopProgram = new DeviceDeploymentAction(DeploymentWizardActions.SendConsoleCommands, "Stop Running Program");
-                    stopProgram.AssignAction((token) => { return device.SendConsoleCommand("stopprog -p:1", stopProgram, token); });
+                    stopProgram.AssignAction((token) => { return device.SendConsoleCommand("stopprog -p:1", stopProgram, token).Item1; });
                     device.DeploymentActions.Add(stopProgram);
 
                     string message = $"Upload {Path.GetFileName(localFilePath)} to slot {programSlot}, {(overwriteIPTable == true ? "updating IP table" : "")} {(includeSIGFile == true ? "sending sig file" : "")}";
@@ -445,11 +445,11 @@ namespace CrestronDeploymentTool.Model.Deployment
                 if (confirmed && newIPID != String.Empty)
                 {
                     DeviceDeploymentAction iptableAction = new DeviceDeploymentAction(DeploymentWizardActions.SendConsoleCommands, $"Clear Current IP Table on {device.NetworkConfiguration.Hostname} @ {device.NetworkConfiguration.Hostname}");
-                    iptableAction.AssignAction((token) => { return device.SendConsoleCommand($"iptable -c", iptableAction, token); });
+                    iptableAction.AssignAction((token) => { return device.SendConsoleCommand($"iptable -c", iptableAction, token).Item1; });
                     device.DeploymentActions.Add(iptableAction);
 
                     DeviceDeploymentAction setIPTableAction = new DeviceDeploymentAction(DeploymentWizardActions.SendConsoleCommands, $"Set IP Table Entry {newIPID} -> {newParent} on {device.NetworkConfiguration.Hostname} @ {device.NetworkConfiguration.Hostname}");
-                    setIPTableAction.AssignAction((token) => { return device.SendConsoleCommand($"addm {newIPID} {newParent}", setIPTableAction, token); });
+                    setIPTableAction.AssignAction((token) => { return device.SendConsoleCommand($"addm {newIPID} {newParent}", setIPTableAction, token).Item1; });
                     device.DeploymentActions.Add(setIPTableAction);
                 }
             });
@@ -665,11 +665,20 @@ namespace CrestronDeploymentTool.Model.Deployment
         {
             DeviceNetworkConfiguration config = device.GetCurrentNetworkConfiguration(token);
 
-            string? response = device.SendConsoleCommandWithResponse("dhcp", token);
-
-            if (response != null) { Log.Debug($"{prefix} DHCP Status: {response}"); }
-
             return config;
+        }
+
+        private static string GenerateUpdateMessage(DeviceNetworkConfiguration current, DeviceNetworkConfiguration update)
+        {
+            string result = "Your provided network configuration will perform the following actions:\r\n\r\n";
+            
+            result += current.DHCP != update?.DHCP ? $"Set DHCP: {update?.DHCP}" : "";
+            result += current.Hostname != update?.Hostname ? $"Update Hostname: {update?.Hostname}" : "";
+            result += current.IPAddress != update?.IPAddress ? $"Update Static IP Addres: {update?.IPAddress}" : "";
+            result += current.Netmask != update?.Netmask ? $"Update Static Netmask: {update?.Netmask}" : "";
+            result += current.DefaultGateway != update?.DefaultGateway ? $"Update Static Default Router/Gateway: {update?.DefaultGateway}" : "";
+
+            return result;
         }
 
         /// <summary>
@@ -677,7 +686,7 @@ namespace CrestronDeploymentTool.Model.Deployment
         /// </summary>
         /// <param name="prompt">whether or not the user should be re-promted to select a more specific set of devices</param>
         /// <returns>whether or the operation was canceled during the wizard configuration process</returns>
-        public static bool IPConfiguration(bool prompt)
+        public static bool NetworkConfiguration(bool prompt)
         {
             bool canceled = false;
 
@@ -686,89 +695,36 @@ namespace CrestronDeploymentTool.Model.Deployment
             //create a list of canceled devices
             List<CrestronDevice> canceledDevices = new List<CrestronDevice>();
             //loop through each target device to determine what configuration file should be sent
-            targetDevices.ForEach(device =>
+            targetDevices.ForEach(async(device) =>
             {
                 bool confirmed = false;
                 bool canceled = false;
-                bool enableDHCP = true;
-                bool updateIPAddress = false;
-                bool updateSubnetMask = false;
-                bool updateGateway = false;
-                bool updateDNSPrimary = false;
-                bool updateDNSSecondary = false;
-                bool updateHostname = false;
-
-                string hostname = "";
-                string ipAddress = "";
-                string subnetMask = "";
-                string gateway = "";
-                string dnsSecondary = "";
-                string dnsPrimary = "";
 
                 DeviceNetworkConfiguration current = GetCurrentNetworkConfiguration(device, new CancellationTokenSource().Token);
+                DeviceNetworkConfiguration? newConfiguration = null;
                 
                 //make sure user confirms or cancels the operation
                 while (!confirmed && !canceled)
                 {
                     //create ip configuration window and wait for result
-                    NetworkConfiguration configuration = new NetworkConfiguration($"Please provide the new network configuration you would like to send to {device.NetworkConfiguration.Hostname} @ {device.NetworkConfiguration.Hostname}", $"Update {device.NetworkConfiguration.Hostname} Network Configuration");
+                    NetworkConfiguration configuration = new NetworkConfiguration($"Please provide the new network configuration you would like to send to {device.NetworkConfiguration.Hostname} @ {device.NetworkConfiguration.Hostname}", $"Update {device.NetworkConfiguration.Hostname} Network Configuration", current);
+                    
                     bool? result = configuration.ShowDialog();
 
                     if (result == true)
                     {
-                        string message = $"Your provided configuration will perform the following actions:\r\r";
+                        newConfiguration = configuration.Configuration;
 
-                        message += $"*{(configuration.EnableDHCP.IsChecked == true ? "Enable" : "Disable")}* DHCP";
-
-                        if (configuration.EnableDHCP.IsChecked != null) { enableDHCP = (bool)configuration.EnableDHCP.IsChecked; }
-
-                        if (configuration.HostnameEntered.Text != String.Empty) {
-                            hostname = configuration.HostnameEntered.Text;
-                            message += $"\r\rUpdate Hostname: *{hostname}*";
-                            updateHostname = true;
-                        }
-                        
-                        if (configuration.EnableDHCP.IsChecked == false) {
-                            if (configuration.IPAddressEntered.Text != String.Empty) {
-                                ipAddress = configuration.IPAddressEntered.Text;
-                                message += $"\r\rUpdate IP Address: *{ipAddress}*";
-                                updateIPAddress = true;
-                            }
-                            if (configuration.SubnetMaskEntered.Text != String.Empty) {
-                                subnetMask = configuration.SubnetMaskEntered.Text;
-                                message += $"\r\rUpdate Subnet Mask: *{subnetMask}*";
-                                updateSubnetMask = true;
-                            }
-                            if (configuration.DefaultGatewayEntered.Text != String.Empty) {
-                                gateway = configuration.DefaultGatewayEntered.Text;
-                                message += $"\r\rUpdate Default Gateway IP Address: *{gateway}*";
-                                updateGateway = true;
-                            }
-                            if (configuration.PrimaryDNSEntered.Text != String.Empty) {
-                                dnsPrimary = configuration.PrimaryDNSEntered.Text;
-                                message += $"\r\rUpdate Primary DNS Server IP Address: *{dnsPrimary}*";
-                                updateDNSPrimary = true;
-                            }
-                            if (configuration.SecondaryDNSEntered.Text != String.Empty) {
-                                dnsSecondary = configuration.SecondaryDNSEntered.Text;
-                                message += $"\r\rUpdate Secondary DNS Server IP Address: *{dnsSecondary}*";
-                                updateDNSSecondary = true;
-                            }
-
-                            message += "\r\r***Does this all look correct?***";
-                        }
+                        string message = GenerateUpdateMessage(current, newConfiguration);
 
                         MessageBoxResult confirmSelection = ConfirmationDialog.Show(message, "Confirm IP Configuration", MessageBoxButton.YesNo);
-                        //old version using default messagebox
-                        //MessageBoxResult confirmSelection = MessageBox.Show(message, "Confirm IP Configuration", MessageBoxButton.YesNo);
 
                         if (confirmSelection == MessageBoxResult.Yes) { confirmed = true; }
                     }
                     else
                     {
                         MessageBoxResult cancelOperation = ConfirmationDialog.Show($"Listen here, you gotta provide IP configuration details if you want me to adjust things. Do you want to send a new IP configuration to {device.NetworkConfiguration.Hostname} or not?", "Cancel IP Configuration Update", MessageBoxButton.YesNo);
-                        //old version using default messagebox
-                        //MessageBoxResult cancelOperation = MessageBox.Show($"Listen here, you gotta provide IP configuration details if you want me to adjust things. Do you want to send a new IP configuration to {device.NetworkConfiguration.Hostname} or not?", "Cancel IP Configuration Update", MessageBoxButton.YesNo);
+                        
                         if (cancelOperation == MessageBoxResult.No) { canceled = true; }
                     }
                 }
@@ -777,59 +733,70 @@ namespace CrestronDeploymentTool.Model.Deployment
 
                 if (confirmed)
                 {
+                    bool updateDHCP = current.DHCP != newConfiguration?.DHCP;
+                    bool updateHostname = current.Hostname != newConfiguration?.Hostname;
+                    bool updateIPAddress = current.IPAddress != newConfiguration?.IPAddress;
+                    bool updateSubnetMask = current.Netmask != newConfiguration?.Netmask;
+                    bool updateGateway = current.DefaultGateway != newConfiguration?.DefaultGateway;
+                    
+                    bool updateDNSPrimary = false;
+                    bool updateDNSSecondary = false;
+
                     //force dhcp state DHCP should be enabled
-                    DeviceDeploymentAction dhcp = new DeviceDeploymentAction(DeploymentWizardActions.SendConsoleCommands, $"{(enableDHCP == true ? "Enable" : "Disable")} DHCP");
-                    dhcp.AssignAction((token) => { return device.SendConsoleCommand($"dhcp 0 {(enableDHCP == true ? "on" : "off")}", dhcp, token); });
-                    device.DeploymentActions.Add(dhcp);
+                    if (updateDHCP) {
+                        DeviceDeploymentAction dhcp = new DeviceDeploymentAction(DeploymentWizardActions.SendConsoleCommands, $"{(newConfiguration?.DHCP == true ? "Enable" : "Disable")} DHCP");
+                        dhcp.AssignAction((token) => { return device.SendConsoleCommand($"dhcp 0 {(newConfiguration?.DHCP == true ? "on" : "off")}", dhcp, token).Item1; });
+                        device.DeploymentActions.Add(dhcp);
+                    }
 
                     if (updateHostname)
                     {
-                        DeviceDeploymentAction action = new DeviceDeploymentAction(DeploymentWizardActions.SendConsoleCommands, $"Update Hostname: {hostname}");
-                        action.AssignAction((token) => { return device.SendConsoleCommand($"hostname {hostname}", action, token); });
+                        DeviceDeploymentAction action = new DeviceDeploymentAction(DeploymentWizardActions.SendConsoleCommands, $"Update Hostname: {newConfiguration?.Hostname}");
+                        action.AssignAction((token) => { return device.SendConsoleCommand($"hostname {newConfiguration?.Hostname}", action, token).Item1; });
                         device.DeploymentActions.Add(action);
                     }
 
                     //if dhcp is not enabled
-                    if (!enableDHCP)
+                    if (newConfiguration?.DHCP == false)
                     {
                         if (updateIPAddress)
                         {
-                            DeviceDeploymentAction action = new DeviceDeploymentAction(DeploymentWizardActions.SendConsoleCommands, $"Update IP Address: {ipAddress}");
-                            action.AssignAction((token) => { return device.SendConsoleCommand($"ipaddr 0 {ipAddress}", action, token); });
+                            DeviceDeploymentAction action = new DeviceDeploymentAction(DeploymentWizardActions.SendConsoleCommands, $"Update IP Address: {newConfiguration?.IPAddress}");
+                            action.AssignAction((token) => { return device.SendConsoleCommand($"ipaddr 0 {newConfiguration?.IPAddress}", action, token).Item1; });
                             device.DeploymentActions.Add(action);
                         }
 
                         if (updateSubnetMask)
                         {
-                            DeviceDeploymentAction action = new DeviceDeploymentAction(DeploymentWizardActions.SendConsoleCommands, $"Update Subnet Mask: {subnetMask}");
-                            action.AssignAction((token) => { return device.SendConsoleCommand($"ipmask 0 {subnetMask}", action, token); });
+                            DeviceDeploymentAction action = new DeviceDeploymentAction(DeploymentWizardActions.SendConsoleCommands, $"Update Subnet Mask: {newConfiguration?.Netmask}");
+                            action.AssignAction((token) => { return device.SendConsoleCommand($"ipmask 0 {newConfiguration?.Netmask}", action, token).Item1; });
                             device.DeploymentActions.Add(action);
                         }
 
                         if (updateGateway)
                         {
-                            DeviceDeploymentAction action = new DeviceDeploymentAction(DeploymentWizardActions.SendConsoleCommands, $"Update Default Gateway: {gateway}");
-                            action.AssignAction((token) => { return device.SendConsoleCommand($"defr 0 {gateway}", action, token); });
+                            DeviceDeploymentAction action = new DeviceDeploymentAction(DeploymentWizardActions.SendConsoleCommands, $"Update Default Gateway: {newConfiguration?.DefaultGateway}");
+                            action.AssignAction((token) => { return device.SendConsoleCommand($"defr 0 {newConfiguration?.DefaultGateway}", action, token).Item1; });
                             device.DeploymentActions.Add(action);
                         }
 
                         if (updateDNSPrimary)
                         {
-                            DeviceDeploymentAction action = new DeviceDeploymentAction(DeploymentWizardActions.SendConsoleCommands, $"Update DNS Server 1: {dnsPrimary}");
-                            action.AssignAction((token) => { return device.UpdateDnsServer(dnsPrimary, action, token); });
+                            DeviceDeploymentAction action = new DeviceDeploymentAction(DeploymentWizardActions.SendConsoleCommands, $"Update DNS Server 1: {newConfiguration?.DnsServers[0]}");
+                            action.AssignAction((token) => { return device.UpdateDnsServer(newConfiguration?.DnsServers[0], action, token); });
                             device.DeploymentActions.Add(action);
                         }
 
                         if (updateDNSSecondary)
                         {
-                            DeviceDeploymentAction action = new DeviceDeploymentAction(DeploymentWizardActions.SendConsoleCommands, $"Update DNS Server 2: {dnsSecondary}");
-                            action.AssignAction((token) => { return device.UpdateDnsServer(dnsPrimary, action, token); });
+                            DeviceDeploymentAction action = new DeviceDeploymentAction(DeploymentWizardActions.SendConsoleCommands, $"Update DNS Server 2: {newConfiguration?.DnsServers[0]}");
+                            action.AssignAction((token) => { return device.UpdateDnsServer(newConfiguration?.DnsServers[0], action, token); });
                             device.DeploymentActions.Add(action);
                         }
                     }
 
                     DeviceDeploymentAction reboot = new DeviceDeploymentAction(DeploymentWizardActions.SendConsoleCommands, $"Reboot Device");
-                    reboot.AssignAction((token) => { return device.SendConsoleCommand("reboot", reboot, token); });
+                    reboot.AssignAction((token) => { return device.SendConsoleCommand("reboot", reboot, token).Item1; });
                     device.DeploymentActions.Add(reboot);
                 }
             });
@@ -986,12 +953,17 @@ namespace CrestronDeploymentTool.Model.Deployment
 
             //if the user cancels the operation, exit the wizard
             if (cancel) { return (null, null); }
+            else
+            {
+                DeploymentResources.customUserName = username; 
+                DeploymentResources.customPassword = password; 
+            }
 
             //determine if we should provide a re-selection dialog for each of the deployment actions (users may want to only deploy to certain devices
             bool reselectTargetDevices = selectedActions.Count > 1 && DiscoveredDevices.SelectedTargetDevices.Count > 1;
 
             //run through the wizard for each deployment action selected
-            selectedActions.ForEach(action =>
+            selectedActions.ForEach(async(action) =>
             {
                 bool canceled = false;
 
@@ -1022,7 +994,7 @@ namespace CrestronDeploymentTool.Model.Deployment
                         Log.Debug($"{prefix} Firmware Deployment {(canceled == true ? "Canceled" : "Ready")}");
                         break;
                     case (DeploymentWizardActions.SetNetworkInformation):
-                        canceled = DeploymentWizard.IPConfiguration(reselectTargetDevices);
+                        canceled = DeploymentWizard.NetworkConfiguration(reselectTargetDevices);
                         Log.Debug($"{prefix} IP Configuration Update {(canceled == true ? "Canceled" : "Ready")}");
                         break;
                 }
