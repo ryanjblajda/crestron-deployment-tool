@@ -17,7 +17,7 @@ namespace CrestronDeploymentTool.UserInterface
         { 
             this.Owner = Application.Current.MainWindow;
             this.WindowStartupLocation = WindowStartupLocation.CenterOwner;
-            this.Title = "Add Known Crestron Device";
+            this.Title = "Update Device IP Table";
             this.Entries = ipTable;
             InitializeComponent();
 
