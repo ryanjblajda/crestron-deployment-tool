@@ -18,6 +18,7 @@ namespace CrestronDeploymentTool.Model.Deployment
         public const string SendConsoleCommands = "Send Console Commands";
         public const string ProvisionNewDevice = "Provision New Device";
         public const string SetNetworkInformation = "Set/Update IP Configuration";
+        public const string UpdateIPTable = "Send/Update Device IP Table";
 
         static DeploymentWizardActions()
         {
@@ -35,7 +36,8 @@ namespace CrestronDeploymentTool.Model.Deployment
                 (SetNetworkInformation, "select this to adjust network settings on multiple devices"),
                 (SendFirmware, "select this to update firmware on multiple devices"),
                 (SendConfigurationFiles, "select this to send configuration files to multiple devices"),
-                (SendProgramming, "select this to update programming to multiple control processors"), 
+                (SendProgramming, "select this to update programming to multiple control processors"),
+                (UpdateIPTable, "select this to update the ip table on multiple devices"),
                 (SendUserInterfaces, "select this to update user interfaces on multiple devices"),
                 (SendConsoleCommands, "select this to send a console command to multiple devices"),
             }.ForEach(item => { Options.Add(new DeploymentWizardAction(false, item.Item1, item.Item2)); });
