@@ -31,7 +31,7 @@ namespace CrestronDeploymentTool.Model.TargetDevices
         public string Serial { get; private set; }
 
         private string NetworkConfigurationPattern = @"ip address[\s\.]*:[\s]*(?<ipaddress>[\d]+\.[\d]+\.[\d]+\.[\d]+)[\s\S]*subnet mask[\s\.]*:[\s]*(?<subnet>[\d]+.[\d]+.[\d]+.[\d]+)[\s\S]*(default\s*gateway|def\s*router)[\s\.]*:[\s]*((?<gateway>[\d]+\.[\d]+\.[\d]+\.[\d]+))?";
-
+        private string IPTableEntryPattern = @"(?<cip_id>\d+)[\s\|]+(?<type>[\w]+)[\s\|]+(?<status>[\w]+)[\s\|](?<deviceid>[\d]+)?[\s\|]+?(?<port>[\d]+)[\s|]+(?<host>[\w-\d\.]+)([\s\|]+)?((?<model>[\w-]+))?([\s\|]+)?((?<description>[\w-\s/\[\]]+))?([\s\|]+)?((?<roomid>[\w\s]+))?\n";
         public DeviceNetworkConfiguration NetworkConfiguration { get; private set; }
 
         internal SshClient? SshClient;
@@ -735,6 +735,11 @@ namespace CrestronDeploymentTool.Model.TargetDevices
             return success;
         }
 
+        /// <summary>
+        /// retrieves the current network configuration of the device
+        /// </summary>
+        /// <param name="cancel">a cancellation token</param>
+        /// <returns>the network configuration</returns>
         public DeviceNetworkConfiguration GetCurrentNetworkConfiguration(CancellationToken cancel)
         {
             //run commands to update status
@@ -821,6 +826,13 @@ namespace CrestronDeploymentTool.Model.TargetDevices
             return this.NetworkConfiguration;
         }
 
+        /// <summary>
+        /// updates the DNS servers from a static configuration on a device
+        /// </summary>
+        /// <param name="server">the server</param>
+        /// <param name="action">the device deployment action</param>
+        /// <param name="token">a cancellation token to cancel the operation</param>
+        /// <returns></returns>
         public bool UpdateDnsServer(string server, DeviceDeploymentAction action, CancellationToken token)
         {
             bool result = false;
@@ -834,6 +846,42 @@ namespace CrestronDeploymentTool.Model.TargetDevices
             else { }
 
             return result;
+        }
+
+        public List<IPTableEntry> GetCurrentIPTable(CancellationToken cancel, int program = 0)
+        {
+            List<IPTableEntry> current = new List<IPTableEntry>();
+
+            string cmd = $"ipt -t";
+
+            if (program != 0) { cmd += $" -p:{program}"; }
+
+            (bool success, string response)= this.SendConsoleCommand(cmd, new DeviceDeploymentAction("", ""), cancel);
+
+            MatchCollection matches = Regex.Matches(response, this.IPTableEntryPattern);
+                
+            matches.ToList().ForEach(m => {
+                if (m.Groups.ContainsKey("cip_id") && m.Groups.ContainsKey("type") && m.Groups.ContainsKey("status") && m.Groups.ContainsKey("port") && m.Groups.ContainsKey("roomid") && m.Groups.ContainsKey("deviceid") && m.Groups.ContainsKey("host")) 
+                {
+                    string model = "";
+                    string description = "";
+                    int deviceid = 0;
+
+                    if (m.Groups.ContainsKey("model")) { model = m.Groups["model"].Value; }
+                    if (m.Groups.ContainsKey("description")) { description = m.Groups["description"].Value; }
+                    if (m.Groups.ContainsKey("deviceid")) 
+                    {
+                        if (m.Groups["deviceid"].Value != "")
+                        {
+                            deviceid = Int32.Parse(m.Groups["deviceid"].Value);
+                        }
+                    }
+
+                    current.Add(new IPTableEntry(m.Groups["host"].Value, Int32.Parse(m.Groups["cip_id"].Value), m.Groups["type"].Value, Int32.Parse(m.Groups["port"].Value), m.Groups["model"].Value, m.Groups["description"].Value, deviceid, m.Groups["roomid"].Value));
+                }
+            });
+            
+            return current;
         }
     }
 }
