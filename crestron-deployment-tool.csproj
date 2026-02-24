@@ -27,6 +27,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Update="UserInterface\IPTableConfiguration.xaml.cs">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Update="UserInterface\ConnectionCredentials.xaml.cs">
       <SubType>Code</SubType>
     </Compile>
