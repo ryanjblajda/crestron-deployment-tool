@@ -15,6 +15,9 @@ namespace CrestronDeploymentTool.UserInterface
         private MessageBoxButton? buttonConfiguration;
         public MessageBoxResult Result { get; private set; }
 
+        /// <summary>
+        /// base constructor
+        /// </summary>
         public ConfirmationDialog()
         {
             this.Owner = Application.Current.MainWindow;
@@ -22,7 +25,13 @@ namespace CrestronDeploymentTool.UserInterface
             InitializeComponent();
         }
 
-        public ConfirmationDialog(string prompt, string title, MessageBoxButton? button) : this()
+        /// <summary>
+        /// constructor for object
+        /// </summary>
+        /// <param name="prompt">the prompt to show in the dialog</param>
+        /// <param name="title">the title of the dialog for the bar</param>
+        /// <param name="button">the buttons to show in the dialog</param>
+        public ConfirmationDialog(string prompt, string title, MessageBoxButton? button = null) : this()
         {
             Utilities.TextHelpers.ParseFormattedText(prompt, this.Message);
             this.Title = title;
@@ -30,6 +39,13 @@ namespace CrestronDeploymentTool.UserInterface
             DetermineButtonText();
         }
 
+        /// <summary>
+        /// static function to call the dialog
+        /// </summary>
+        /// <param name="prompt">the prompt to show in the dialog</param>
+        /// <param name="title">the title of the dialog for the bar</param>
+        /// <param name="button">the buttons to show in the dialog</param>
+        /// <returns>a messagebox result when the dialog closes</returns>
         public static MessageBoxResult Show(string prompt, string title, MessageBoxButton? buttons = null)
         {
             if (buttons == null) { buttons = MessageBoxButton.OK; }
@@ -38,6 +54,9 @@ namespace CrestronDeploymentTool.UserInterface
             return dialog.Result;
         }
 
+        /// <summary>
+        /// determines what the text on the messagebox buttons should be, and their state
+        /// </summary>
         private void DetermineButtonText()
         {
             switch (this.buttonConfiguration)
@@ -82,9 +101,24 @@ namespace CrestronDeploymentTool.UserInterface
                     ButtonRight.Content = "Cancel";
 
                     break;
+
+                default:
+                    ButtonLeft.Visibility = Visibility.Collapsed;
+                    ButtonCenter.Visibility = Visibility.Collapsed;
+                    ButtonRight.Visibility = Visibility.Collapsed;
+
+                    ButtonLeft.Content = "Collapsed";
+                    ButtonCenter.Content = "Collapsed";
+                    ButtonRight.Content = "Collapsed";
+                    break;
             }
         }
 
+        /// <summary>
+        /// handle the button press events
+        /// </summary>
+        /// <param name="sender">the button that sent the event</param>
+        /// <param name="e">the button args</param>
         private void OnButtonPressed(object sender, RoutedEventArgs e)
         {
             Button clicked = (Button)sender;
